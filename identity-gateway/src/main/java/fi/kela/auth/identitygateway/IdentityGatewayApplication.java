@@ -13,9 +13,9 @@ public class IdentityGatewayApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(IdentityGatewayApplication.class, args);
 	}
-	
+
 	@Bean
 	public Servlet dispatcherServlet() {
 		return new GatewayServlet();
-	}	
+	}
 }

@@ -23,7 +23,7 @@ import org.apache.log4j.Logger;
 public class GatewayServlet extends GenericServlet {
 	private static final long serialVersionUID = 1L;
 	// TODO: These are static for now. Should be specified using parameters 
-	private static final String GATEWAY_PROVIDER = "http://localhost:8080";
+	private String gatewayProvider;
 	private static final String PROXY_TARGET = "http://localhost:19082";
 	private static final String COOKIE_PATH = "/";
 	private static final String CALLBACK_SERVICE_CONTEXT = "/auth-cb";
@@ -59,9 +59,16 @@ public class GatewayServlet extends GenericServlet {
 			proxy(req, res);
 		}
 	}
+	
+	public String getGatewayProvider(HttpServletRequest req) {
+		if (gatewayProvider != null) {
+			return gatewayProvider;
+		}
+		return req.getScheme() + "://" + req.getServerName() + ":" + req.getServerPort();
+	}
 
-	private String getCallbackURI() {
-		return GATEWAY_PROVIDER + CALLBACK_SERVICE_CONTEXT;
+	private String getCallbackURI(HttpServletRequest req) {
+		return getGatewayProvider(req) + CALLBACK_SERVICE_CONTEXT;
 	}
 
 	private boolean isAuthenticationCallback(HttpServletRequest req) {
@@ -74,7 +81,7 @@ public class GatewayServlet extends GenericServlet {
 		// TODO: Verify state
 		
 		String code = req.getParameter("code");
-		String token = openIDClient.getToken(code, getCallbackURI());
+		String token = openIDClient.getToken(code, getCallbackURI(req));
 
 		// TODO: Fetch destination from state
 		String origin = state;
@@ -118,7 +125,7 @@ public class GatewayServlet extends GenericServlet {
 		logger.info("Redirecting to authentication service");
 		String stateId = generateStateID();
 		res.addCookie(createStateCookie(req, stateId));
-		res.sendRedirect(openIDClient.getLoginProviderURL(stateId, getCallbackURI()));
+		res.sendRedirect(openIDClient.getLoginProviderURL(stateId, getCallbackURI(req)));
 	}
 	
 	private String generateStateID() {
