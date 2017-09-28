@@ -1,0 +1,2 @@
+# test-provider
+Example for handling OpenID Connect based authentication and generating tokens. Test provider does not do real authentication, it merely prompts user for his credentials. These credentials are provided to client on token request
