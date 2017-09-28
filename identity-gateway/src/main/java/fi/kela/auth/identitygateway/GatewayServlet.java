@@ -134,7 +134,11 @@ public class GatewayServlet extends GenericServlet {
 	}
 	
 	private boolean containsCookie(HttpServletRequest req, String name) {
-		return Arrays.asList(req.getCookies()).stream().filter(c -> name.equals(c.getName())).findFirst().isPresent();
+		Cookie []cookies = req.getCookies();
+		if (cookies == null) {
+			return false;
+		}
+		return Arrays.asList(cookies).stream().filter(c -> name.equals(c.getName())).findFirst().isPresent();
 	}
 	
 	private String getCookie(HttpServletRequest req, String name) {

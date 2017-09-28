@@ -1,0 +1,19 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<title>Authentication: Provide credentials</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+<body>
+    <form action="#" th:action="@{/login}" th:object="${login}" method="post">
+    	<input type="hidden" th:field="*{responseType}"/>
+    	<input type="hidden" th:field="*{scope}"/>
+    	<input type="hidden" th:field="*{state}"/>
+    	<input type="hidden" th:field="*{redirectURI}"/>
+    	<p>Subject: <input type="text" th:field="*{subject}" /></p>
+    	<p>Name: <input type="text" th:field="*{name}" /></p>
+        <p>GroupId: <input type="text" th:field="*{groupId}" /></p>
+        <p><input type="submit" value="Login" /></p>
+    </form>
+</body>
+</html>

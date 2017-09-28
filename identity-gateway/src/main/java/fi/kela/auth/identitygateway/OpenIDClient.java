@@ -7,8 +7,10 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.springframework.boot.json.BasicJsonParser;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
@@ -49,7 +51,8 @@ public class OpenIDClient {
 	}
 
 	private boolean isTokenInResponse(HttpURLConnection connection) throws IOException {
-		return connection.getResponseCode() == 200 && "application/json".equals(connection.getContentType());
+		String contentType = connection.getContentType();
+		return connection.getResponseCode() == 200 && contentType != null && contentType.startsWith("application/json");
 	}
 
 	private String readTokenResponse(HttpURLConnection connection) throws IOException {
@@ -63,13 +66,18 @@ public class OpenIDClient {
 	private String readResponse(HttpURLConnection connection) throws IOException, UnsupportedEncodingException {
 		try (InputStream is = connection.getInputStream();
 				InputStreamReader isr = new InputStreamReader(is, ENCODING)) {
+			
 			char[] buf = new char[4096];
 			int cnt;
-			StringBuilder token = new StringBuilder();
+			StringBuilder response = new StringBuilder();
 			while ((cnt = isr.read(buf)) > 0) {
-				token.append(buf, 0, cnt);
+				response.append(buf, 0, cnt);
 			}
-			return token.toString();
+			
+			BasicJsonParser parser = new BasicJsonParser();
+			Map<String, Object> token = parser.parseMap(response.toString());
+			
+			return token.get("id_token").toString();
 		}
 	}
 
