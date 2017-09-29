@@ -10,21 +10,21 @@ public class AppPropValues {
 	@Autowired
 	Environment env;
 	
-	private final String PROXY_TARGET="proxy_target";
-	private final String COOKIE_PATH = "cookie_path";
-	private final String CALLBACK_SERVICE_CONTEXT = "callback_service_context";
-	private final String LOGOUT_SERVICE_CONTEXT = "logout_service_context";
-	private final String ERROR_CONTEXT = "error_context";
-	private final String AUTH_SERVICE_CONTEXT = "auth_service_context";
-	private final String ERROR_REDIRECT_TARGET = "error_redirect_target";
-	private final String LOGOUT_REDIRECT_TARGET = "logout_redirect_target";
-	private final String AUTH_TOKEN_COOKIE = "auth_token_cookie";
-	private final String STATE_COOKIE = "state_cookie";
-	private final String ISSUER = "issuer";
-	private final String ENCODING = "encoding";
-	private final String LOGIN_PROVIDER = "login_provider";
-	private final String TOKEN_PROVIDER = "token_provider";
-	private final String CLIENT_ID = "client_id";
+	private final String PROXY_TARGET="igw.proxy_target";
+	private final String COOKIE_PATH = "igw.cookie_path";
+	private final String CALLBACK_SERVICE_CONTEXT = "igw.callback_service_context";
+	private final String LOGOUT_SERVICE_CONTEXT = "igw.logout_service_context";
+	private final String ERROR_CONTEXT = "igw.error_context";
+	private final String AUTH_SERVICE_CONTEXT = "igw.auth_service_context";
+	private final String ERROR_REDIRECT_TARGET = "igw.error_redirect_target";
+	private final String LOGOUT_REDIRECT_TARGET = "igw.logout_redirect_target";
+	private final String AUTH_TOKEN_COOKIE = "igw.auth_token_cookie";
+	private final String STATE_COOKIE = "igw.state_cookie";
+	private final String ISSUER = "igw.issuer";
+	private final String ENCODING = "igw.encoding";
+	private final String LOGIN_PROVIDER = "igw.login_provider";
+	private final String TOKEN_PROVIDER = "igw.token_provider";
+	private final String CLIENT_ID = "igw.client_id";
 	
 	
 
