@@ -46,7 +46,7 @@ public class OpenIDClient {
 		connection.addRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 		connection.setRequestMethod("POST");
 		connection.getOutputStream()
-				.write(("grant_type=authorization_code" + "&code=" + URLEncoder.encode(code, ENCODING) + "&redirect_uri"
+				.write(("grant_type=authorization_code" + "&code=" + URLEncoder.encode(code, ENCODING) + "&redirect_uri="
 						+ URLEncoder.encode(redirectURI, ENCODING)).getBytes(ENCODING));
 	}
 
