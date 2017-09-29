@@ -46,19 +46,25 @@ public class GatewayServlet extends GenericServlet {
 		} else if (!isAuthenticationTokenSet(req) && !isAllowAnonymous(req)) {
 			redirectToAuthentication(req, res);
 		} else {
-			Cookie authenticationTokenCookie = getAuthenticationTokenCookie(req);
-			String authenticationToken = null;
-			if (authenticationTokenCookie == null) {
-				authenticationToken = null;
-			} else if (requiresRenewal(authenticationTokenCookie)) {
-				// TODO: Renew the cookie
-				// oicService.renewToken();
-				throw new IllegalStateException("Unfortunately this is not yet implemented!");
-			} else {
-				authenticationToken = authenticationTokenCookie.getValue();
-			}
+			String authenticationToken = getAuthenticationToken(req, res);
 			proxy.proxy(req, res, authenticationToken);
 		}
+	}
+
+	private String getAuthenticationToken(HttpServletRequest req, HttpServletResponse res) throws IOException {
+		String authenticationToken;
+		Cookie authenticationTokenCookie = getAuthenticationTokenCookie(req);
+		if (authenticationTokenCookie == null) {
+			authenticationToken = null;
+		} else if (requiresRenewal(authenticationTokenCookie)) {
+			// TODO: Renew the cookie
+			Token token = oicService.getTokenWithRefreshToken(null);
+			res.addCookie(createAuthCookie(token));
+			authenticationToken = token.getId_token();
+		} else {
+			authenticationToken = authenticationTokenCookie.getValue();
+		}
+		return authenticationToken;
 	}
 
 	private boolean requiresRenewal(Cookie authenticationTokenCookie) {
@@ -89,10 +95,10 @@ public class GatewayServlet extends GenericServlet {
 		StateCookie stateCookie = StateCookie.of(getCookie(req, appPropValues.getStateCookie()).getValue());
 		verifyState(stateId, stateCookie);
 
-		Token token = oicService.getToken(code, getCallbackURI(req));
+		Token token = oicService.getTokenWithAuthorizationCode(code, getCallbackURI(req));
 
 		logger.info("User authenticated, redirecting to " + stateCookie.getOrigin());
-		res.addCookie(createAuthCookie(token.getId_token(), token.getExpires_in()));
+		res.addCookie(createAuthCookie(token));
 		res.sendRedirect(stateCookie.getOrigin());
 	}
 
@@ -118,6 +124,10 @@ public class GatewayServlet extends GenericServlet {
 		res.sendRedirect(appPropValues.getLogoutRedirectTarget());
 	}
 
+	private Cookie createAuthCookie(Token token) {
+		return createAuthCookie(token.getId_token(), token.getExpires_in());
+	}
+
 	private Cookie createAuthCookie(String content, int maxAge) {
 		Cookie cookie = new Cookie(appPropValues.getAuthTokenCookie(), content);
 		cookie.setPath(appPropValues.getCookiePath());
@@ -134,8 +144,7 @@ public class GatewayServlet extends GenericServlet {
 	}
 
 	private boolean isAllowAnonymous(HttpServletRequest req) {
-		return appPropValues.getExcludedContexts().stream()
-				.anyMatch(c -> req.getServletPath().startsWith(c));
+		return appPropValues.getExcludedContexts().stream().anyMatch(c -> req.getServletPath().startsWith(c));
 	}
 
 	private void redirectToError(HttpServletRequest req, HttpServletResponse res) throws IOException {

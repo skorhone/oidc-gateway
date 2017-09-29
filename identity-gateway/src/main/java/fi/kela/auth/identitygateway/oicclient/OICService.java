@@ -41,8 +41,12 @@ public class OICService {
 						+ URLEncoder.encode(state, AppConstants.ENCODING) + "&redirect_uri="
 						+ URLEncoder.encode(redirectURI, AppConstants.ENCODING));
 	}
+	
+	public Token getTokenWithRefreshToken(String refreshToken) throws IOException {
+		throw new IllegalStateException("Not yet implemented");
+	}
 
-	public Token getToken(String code, String redirectURI) throws IOException {
+	public Token getTokenWithAuthorizationCode(String code, String redirectURI) throws IOException {
 		HttpURLConnection connection = (HttpURLConnection) new URL(appPropValues.getTokenProvider()).openConnection();
 		sendTokenRequest(connection, code, redirectURI);
 		Token token = readTokenResponse(connection);

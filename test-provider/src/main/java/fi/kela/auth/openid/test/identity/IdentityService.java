@@ -18,7 +18,7 @@ public class IdentityService {
 	}
 
 	public Identity getIdentity(String id) {
-		return identities.get(id);
+		return identities.remove(id);
 	}
 
 	private String generateUniqueId() {

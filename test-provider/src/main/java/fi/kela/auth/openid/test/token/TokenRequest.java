@@ -4,6 +4,7 @@ public class TokenRequest {
 	private String grant_type;
 	private String code;
 	private String redirect_uri;
+	private String refresh_token;
 
 	public String getGrant_type() {
 		return grant_type;
@@ -27,5 +28,13 @@ public class TokenRequest {
 
 	public void setRedirect_uri(String redirect_uri) {
 		this.redirect_uri = redirect_uri;
+	}
+	
+	public String getRefresh_token() {
+		return refresh_token;
+	}
+	
+	public void setRefresh_token(String refresh_token) {
+		this.refresh_token = refresh_token;
 	}
 }
