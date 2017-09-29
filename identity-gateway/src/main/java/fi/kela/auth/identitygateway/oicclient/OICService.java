@@ -20,9 +20,9 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 
+import fi.kela.auth.identitygateway.config.AppConstants;
+import fi.kela.auth.identitygateway.config.IGWConfiguration;
 import fi.kela.auth.identitygateway.util.URLs;
-import fi.kela.auth.identitygateway.values.AppConstants;
-import fi.kela.auth.identitygateway.values.AppPropValues;
 
 /**
  * OpenID Connect service
@@ -32,7 +32,7 @@ import fi.kela.auth.identitygateway.values.AppPropValues;
 public class OICService {
 	private static final Logger logger = Logger.getLogger(OICService.class);
 	@Autowired
-	private AppPropValues appPropValues;
+	private IGWConfiguration appPropValues;
 
 	public String getLoginProviderURL(String state, String redirectURI) throws IOException {
 		return URLs.concatURL(appPropValues.getLoginProvider(), "",
@@ -42,10 +42,10 @@ public class OICService {
 						+ URLEncoder.encode(redirectURI, AppConstants.ENCODING));
 	}
 
-	public String getToken(String code, String redirectURI) throws IOException {
+	public Token getToken(String code, String redirectURI) throws IOException {
 		HttpURLConnection connection = (HttpURLConnection) new URL(appPropValues.getTokenProvider()).openConnection();
 		sendTokenRequest(connection, code, redirectURI);
-		String token = readTokenResponse(connection);
+		Token token = readTokenResponse(connection);
 		if (!isValidToken(token)) {
 			throw new IllegalStateException("Token is not valid");
 		}
@@ -67,7 +67,7 @@ public class OICService {
 		return connection.getResponseCode() == 200 && contentType != null && contentType.startsWith("application/json");
 	}
 
-	private String readTokenResponse(HttpURLConnection connection) throws IOException {
+	private Token readTokenResponse(HttpURLConnection connection) throws IOException {
 		if (!isTokenInResponse(connection)) {
 			// TODO: Fix this
 			throw new IllegalStateException("No token?!");
@@ -75,7 +75,7 @@ public class OICService {
 		return readResponse(connection);
 	}
 
-	private String readResponse(HttpURLConnection connection) throws IOException, UnsupportedEncodingException {
+	private Token readResponse(HttpURLConnection connection) throws IOException, UnsupportedEncodingException {
 		try (InputStream is = connection.getInputStream();
 				InputStreamReader isr = new InputStreamReader(is, AppConstants.ENCODING)) {
 			char[] buf = new char[4096];
@@ -86,16 +86,21 @@ public class OICService {
 			}
 			BasicJsonParser parser = new BasicJsonParser();
 			Map<String, Object> token = parser.parseMap(response.toString());
-			return token.get("id_token").toString();
+
+			String idToken = token.get("id_token").toString();
+			String accessToken = token.get("access_token").toString();
+			String tokenType = token.get("token_type").toString();
+			int expiresIn = ((Number) token.get("expires_in")).intValue();
+			return new Token(idToken, accessToken, tokenType, expiresIn);
 		}
 	}
 
-	private boolean isValidToken(String token) {
+	private boolean isValidToken(Token token) {
 		boolean valid = false;
 		try {
 			Algorithm algorithm = Algorithm.HMAC256("secret");
 			JWTVerifier verifier = JWT.require(algorithm).withIssuer(appPropValues.getIssuer()).build();
-			DecodedJWT jwt = verifier.verify(token);
+			DecodedJWT jwt = verifier.verify(token.getId_token());
 			valid = true;
 		} catch (UnsupportedEncodingException exception) {
 			// UTF-8 encoding not supported

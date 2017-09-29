@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 
-import fi.kela.auth.identitygateway.values.AppConstants;
+import fi.kela.auth.identitygateway.config.AppConstants;
 
 public class StateCookie {
 	private String state;

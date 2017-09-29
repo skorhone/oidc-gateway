@@ -17,14 +17,14 @@ import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 
+import fi.kela.auth.identitygateway.config.IGWConfiguration;
 import fi.kela.auth.identitygateway.util.URLs;
-import fi.kela.auth.identitygateway.values.AppPropValues;
 
 @Controller
 public class ProxyService {
 	private static final Logger logger = Logger.getLogger(ProxyService.class);
 	@Autowired
-	private AppPropValues appPropValues;
+	private IGWConfiguration appPropValues;
 
 	public void proxy(HttpServletRequest req, HttpServletResponse res, String authenticationToken)
 			throws ServletException, IOException {

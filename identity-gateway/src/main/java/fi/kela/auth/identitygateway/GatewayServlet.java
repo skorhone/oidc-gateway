@@ -15,19 +15,19 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import fi.kela.auth.identitygateway.config.IGWConfiguration;
 import fi.kela.auth.identitygateway.oicclient.OICService;
+import fi.kela.auth.identitygateway.oicclient.Token;
 import fi.kela.auth.identitygateway.proxy.ProxyService;
 import fi.kela.auth.identitygateway.util.URLs;
-import fi.kela.auth.identitygateway.values.AppPropValues;
 
 public class GatewayServlet extends GenericServlet {
 	private static final long serialVersionUID = 1L;
 	private static final Logger logger = Logger.getLogger(GatewayServlet.class);
-	private String gatewayProvider;
 	@Autowired
 	private OICService oicService;
 	@Autowired
-	private AppPropValues appPropValues;
+	private IGWConfiguration appPropValues;
 	@Autowired
 	private ProxyService proxy;
 
@@ -46,19 +46,35 @@ public class GatewayServlet extends GenericServlet {
 		} else if (!isAuthenticationTokenSet(req) && !isAllowAnonymous(req)) {
 			redirectToAuthentication(req, res);
 		} else {
-			proxy.proxy(req, res, getAuthenticationToken(req));
+			Cookie authenticationTokenCookie = getAuthenticationTokenCookie(req);
+			String authenticationToken = null;
+			if (authenticationTokenCookie == null) {
+				authenticationToken = null;
+			} else if (requiresRenewal(authenticationTokenCookie)) {
+				// TODO: Renew the cookie
+				// oicService.renewToken();
+				throw new IllegalStateException("Unfortunately this is not yet implemented!");
+			} else {
+				authenticationToken = authenticationTokenCookie.getValue();
+			}
+			proxy.proxy(req, res, authenticationToken);
 		}
 	}
 
-	public String getGatewayProvider(HttpServletRequest req) {
-		if (gatewayProvider != null) {
-			return gatewayProvider;
+	private boolean requiresRenewal(Cookie authenticationTokenCookie) {
+		// TODO: This is not yet done
+		return false;
+	}
+
+	public String getLocation(HttpServletRequest req) {
+		if (appPropValues.getLocation() != null) {
+			return appPropValues.getLocation();
 		}
 		return req.getScheme() + "://" + req.getServerName() + ":" + req.getServerPort();
 	}
 
 	private String getCallbackURI(HttpServletRequest req) {
-		return URLs.concatURL(getGatewayProvider(req), appPropValues.getCallbackServiceContext());
+		return URLs.concatURL(getLocation(req), appPropValues.getCallbackServiceContext());
 	}
 
 	private boolean isAuthenticationCallback(HttpServletRequest req) {
@@ -70,13 +86,13 @@ public class GatewayServlet extends GenericServlet {
 		String code = req.getParameter("code");
 		verifyCallbackParameters(stateId, code);
 
-		StateCookie stateCookie = StateCookie.of(getCookie(req, appPropValues.getStateCookie()));
+		StateCookie stateCookie = StateCookie.of(getCookie(req, appPropValues.getStateCookie()).getValue());
 		verifyState(stateId, stateCookie);
 
-		String token = oicService.getToken(code, getCallbackURI(req));
+		Token token = oicService.getToken(code, getCallbackURI(req));
 
 		logger.info("User authenticated, redirecting to " + stateCookie.getOrigin());
-		res.addCookie(createAuthCookie(token, -1));
+		res.addCookie(createAuthCookie(token.getId_token(), token.getExpires_in()));
 		res.sendRedirect(stateCookie.getOrigin());
 	}
 
@@ -118,7 +134,8 @@ public class GatewayServlet extends GenericServlet {
 	}
 
 	private boolean isAllowAnonymous(HttpServletRequest req) {
-		return appPropValues.getAuthServiceContext().equals(req.getServletPath());
+		return appPropValues.getExcludedContexts().stream()
+				.anyMatch(c -> req.getServletPath().startsWith(c));
 	}
 
 	private void redirectToError(HttpServletRequest req, HttpServletResponse res) throws IOException {
@@ -156,17 +173,19 @@ public class GatewayServlet extends GenericServlet {
 		return Arrays.asList(cookies).stream().filter(c -> name.equals(c.getName())).findFirst().isPresent();
 	}
 
-	private String getCookie(HttpServletRequest req, String name) {
-		return Arrays.asList(req.getCookies()).stream().filter(c -> name.equals(c.getName())).findFirst().get()
-				.getValue();
+	private Cookie getCookie(HttpServletRequest req, String name) {
+		Cookie[] cookies = req.getCookies();
+		if (cookies == null) {
+			return null;
+		}
+		return Arrays.asList(cookies).stream().filter(c -> name.equals(c.getName())).findFirst().orElse(null);
 	}
 
 	private boolean isAuthenticationTokenSet(HttpServletRequest req) {
 		return containsCookie(req, appPropValues.getAuthTokenCookie());
 	}
 
-	private String getAuthenticationToken(HttpServletRequest req) {
+	private Cookie getAuthenticationTokenCookie(HttpServletRequest req) {
 		return getCookie(req, appPropValues.getAuthTokenCookie());
 	}
-
 }
