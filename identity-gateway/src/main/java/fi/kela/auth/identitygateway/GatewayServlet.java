@@ -15,6 +15,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import fi.kela.auth.identitygateway.oicclient.OICService;
 import fi.kela.auth.identitygateway.proxy.ProxyService;
 import fi.kela.auth.identitygateway.util.URLs;
 import fi.kela.auth.identitygateway.values.AppPropValues;
@@ -22,16 +23,13 @@ import fi.kela.auth.identitygateway.values.AppPropValues;
 public class GatewayServlet extends GenericServlet {
 	private static final long serialVersionUID = 1L;
 	private static final Logger logger = Logger.getLogger(GatewayServlet.class);
-	private OpenIDClient openIDClient;
 	private String gatewayProvider;
+	@Autowired
+	private OICService oicService;
 	@Autowired
 	private AppPropValues appPropValues;
 	@Autowired
 	private ProxyService proxy;
-
-	public GatewayServlet() {
-		openIDClient = new OpenIDClient();
-	}
 
 	@Override
 	public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
@@ -75,7 +73,7 @@ public class GatewayServlet extends GenericServlet {
 		StateCookie stateCookie = StateCookie.of(getCookie(req, appPropValues.getStateCookie()));
 		verifyState(stateId, stateCookie);
 
-		String token = openIDClient.getToken(code, getCallbackURI(req));
+		String token = oicService.getToken(code, getCallbackURI(req));
 
 		logger.info("User authenticated, redirecting to " + stateCookie.getOrigin());
 		res.addCookie(createAuthCookie(token, -1));
@@ -132,7 +130,7 @@ public class GatewayServlet extends GenericServlet {
 		logger.info("Redirecting to authentication service");
 		String stateId = generateStateID();
 		res.addCookie(createStateCookie(req, stateId));
-		res.sendRedirect(openIDClient.getLoginProviderURL(stateId, getCallbackURI(req)));
+		res.sendRedirect(oicService.getLoginProviderURL(stateId, getCallbackURI(req)));
 	}
 
 	private String generateStateID() {

@@ -1,4 +1,4 @@
-package fi.kela.auth.identitygateway;
+package fi.kela.auth.identitygateway.oicclient;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,7 +10,9 @@ import java.net.URLEncoder;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.json.BasicJsonParser;
+import org.springframework.stereotype.Controller;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
@@ -18,21 +20,30 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 
-public class OpenIDClient {
-	private static final String ISSUER = "https://openid.kela.fi";
-	private static final String ENCODING = "utf-8";
-	private static final String LOGIN_PROVIDER = "http://localhost:18080/login";
-	private static final String TOKEN_PROVIDER = "http://localhost:18080/token";
-	private static final String CLIENT_ID = "kela";
-	private static final Logger logger = Logger.getLogger(OpenIDClient.class);
+import fi.kela.auth.identitygateway.util.URLs;
+import fi.kela.auth.identitygateway.values.AppConstants;
+import fi.kela.auth.identitygateway.values.AppPropValues;
+
+/**
+ * OpenID Connect service
+ *
+ */
+@Controller
+public class OICService {
+	private static final Logger logger = Logger.getLogger(OICService.class);
+	@Autowired
+	private AppPropValues appPropValues;
 
 	public String getLoginProviderURL(String state, String redirectURI) throws IOException {
-		return LOGIN_PROVIDER + "?response_type=code&scope=openid&client_id=" + CLIENT_ID + "&state="
-				+ URLEncoder.encode(state, ENCODING) + "&redirect_uri=" + URLEncoder.encode(redirectURI, ENCODING);
+		return URLs.concatURL(appPropValues.getLoginProvider(), "",
+				"response_type=code&scope=openid&client_id="
+						+ URLEncoder.encode(appPropValues.getClientId(), AppConstants.ENCODING) + "&state="
+						+ URLEncoder.encode(state, AppConstants.ENCODING) + "&redirect_uri="
+						+ URLEncoder.encode(redirectURI, AppConstants.ENCODING));
 	}
 
 	public String getToken(String code, String redirectURI) throws IOException {
-		HttpURLConnection connection = (HttpURLConnection) new URL(TOKEN_PROVIDER).openConnection();
+		HttpURLConnection connection = (HttpURLConnection) new URL(appPropValues.getTokenProvider()).openConnection();
 		sendTokenRequest(connection, code, redirectURI);
 		String token = readTokenResponse(connection);
 		if (!isValidToken(token)) {
@@ -46,8 +57,9 @@ public class OpenIDClient {
 		connection.addRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 		connection.setRequestMethod("POST");
 		connection.getOutputStream()
-				.write(("grant_type=authorization_code" + "&code=" + URLEncoder.encode(code, ENCODING) + "&redirect_uri="
-						+ URLEncoder.encode(redirectURI, ENCODING)).getBytes(ENCODING));
+				.write(("grant_type=authorization_code" + "&code=" + URLEncoder.encode(code, AppConstants.ENCODING)
+						+ "&redirect_uri=" + URLEncoder.encode(redirectURI, AppConstants.ENCODING))
+								.getBytes(AppConstants.ENCODING));
 	}
 
 	private boolean isTokenInResponse(HttpURLConnection connection) throws IOException {
@@ -65,18 +77,15 @@ public class OpenIDClient {
 
 	private String readResponse(HttpURLConnection connection) throws IOException, UnsupportedEncodingException {
 		try (InputStream is = connection.getInputStream();
-				InputStreamReader isr = new InputStreamReader(is, ENCODING)) {
-			
+				InputStreamReader isr = new InputStreamReader(is, AppConstants.ENCODING)) {
 			char[] buf = new char[4096];
 			int cnt;
 			StringBuilder response = new StringBuilder();
 			while ((cnt = isr.read(buf)) > 0) {
 				response.append(buf, 0, cnt);
 			}
-			
 			BasicJsonParser parser = new BasicJsonParser();
 			Map<String, Object> token = parser.parseMap(response.toString());
-			
 			return token.get("id_token").toString();
 		}
 	}
@@ -85,7 +94,7 @@ public class OpenIDClient {
 		boolean valid = false;
 		try {
 			Algorithm algorithm = Algorithm.HMAC256("secret");
-			JWTVerifier verifier = JWT.require(algorithm).withIssuer(ISSUER).build();
+			JWTVerifier verifier = JWT.require(algorithm).withIssuer(appPropValues.getIssuer()).build();
 			DecodedJWT jwt = verifier.verify(token);
 			valid = true;
 		} catch (UnsupportedEncodingException exception) {
