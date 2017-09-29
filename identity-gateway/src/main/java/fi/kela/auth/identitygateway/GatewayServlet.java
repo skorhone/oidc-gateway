@@ -19,28 +19,25 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import fi.kela.auth.identitygateway.values.AppPropValues;
 
 public class GatewayServlet extends GenericServlet {
+	
 	private static final long serialVersionUID = 1L;
-	// TODO: These are static for now. Should be specified using parameters 
 	private String gatewayProvider;
-	private static final String PROXY_TARGET = "http://localhost:19082";
-	private static final String COOKIE_PATH = "/";
-	private static final String CALLBACK_SERVICE_CONTEXT = "/auth-cb";
-	private static final String LOGOUT_SERVICE_CONTEXT = "/logout";
-	private static final String ERROR_CONTEXT = "/error";
-	private static final String AUTH_SERVICE_CONTEXT = "/auth";
-	private static final String ERROR_REDIRECT_TARGET = "http://error";
-	private static final String LOGOUT_REDIRECT_TARGET = "http://logout";
-	private static final String AUTH_TOKEN_COOKIE = "K_JWT";
-	private static final String STATE_COOKIE = "S_AUTH";
 	private static final Logger logger = Logger.getLogger(GatewayServlet.class);
 	private OpenIDClient openIDClient;
+	@Autowired
+	private AppPropValues appPropValues;
+	
+
 
 	public GatewayServlet() {
 		openIDClient = new OpenIDClient();
 	}
-
+	
 	@Override
 	public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
 		service((HttpServletRequest) req, (HttpServletResponse) res);
@@ -68,16 +65,16 @@ public class GatewayServlet extends GenericServlet {
 	}
 
 	private String getCallbackURI(HttpServletRequest req) {
-		return getGatewayProvider(req) + CALLBACK_SERVICE_CONTEXT;
+		return getGatewayProvider(req) + appPropValues.getCALLBACK_SERVICE_CONTEXT();
 	}
 
 	private boolean isAuthenticationCallback(HttpServletRequest req) {
-		return CALLBACK_SERVICE_CONTEXT.equals(req.getServletPath());
+		return appPropValues.getCALLBACK_SERVICE_CONTEXT().equals(req.getServletPath());
 	}
 
 	private void authenticate(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		String stateId = req.getParameter("state");
-		String state = getCookie(req, STATE_COOKIE);
+		String state = getCookie(req, appPropValues.getSTATE_COOKIE());
 		// TODO: Verify state
 		
 		String code = req.getParameter("code");
@@ -93,32 +90,32 @@ public class GatewayServlet extends GenericServlet {
 	private void logout(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		logger.info("Logging out");
 		res.addCookie(createAuthCookie(null, 0));
-		res.sendRedirect(LOGOUT_REDIRECT_TARGET);
+		res.sendRedirect(appPropValues.getLOGOUT_REDIRECT_TARGET());
 	}
 	
 	private Cookie createAuthCookie(String content, int maxAge) {
-		Cookie cookie = new Cookie(AUTH_TOKEN_COOKIE, content);
-		cookie.setPath(COOKIE_PATH);
+		Cookie cookie = new Cookie(appPropValues.getAUTH_TOKEN_COOKIE(), content);
+		cookie.setPath(appPropValues.getCOOKIE_PATH());
 		cookie.setMaxAge(maxAge);
 		return cookie;
 	}
 	
 
 	private boolean isError(HttpServletRequest req) {
-		return ERROR_CONTEXT.equals(req.getServletPath());
+		return appPropValues.getERROR_CONTEXT().equals(req.getServletPath());
 	}
 
 	private boolean isLogout(HttpServletRequest req) {
-		return LOGOUT_SERVICE_CONTEXT.equals(req.getServletPath());
+		return appPropValues.getLOGOUT_SERVICE_CONTEXT().equals(req.getServletPath());
 	}
 
 	private boolean isAllowAnonymous(HttpServletRequest req) {
-		return AUTH_SERVICE_CONTEXT.equals(req.getServletPath());
+		return appPropValues.getAUTH_SERVICE_CONTEXT().equals(req.getServletPath());
 	}
 
 	private void redirectToError(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		logger.info("Redirecting to error page");
-		res.sendRedirect(ERROR_REDIRECT_TARGET);
+		res.sendRedirect(appPropValues.getERROR_REDIRECT_TARGET());
 	}
 
 	private void redirectToAuthentication(HttpServletRequest req, HttpServletResponse res) throws IOException {
@@ -134,8 +131,8 @@ public class GatewayServlet extends GenericServlet {
 	
 	private Cookie createStateCookie(HttpServletRequest req, String state) {
 		String origin = req.getServletPath();
-		Cookie cookie = new Cookie(STATE_COOKIE, origin);
-		cookie.setPath(COOKIE_PATH);
+		Cookie cookie = new Cookie(appPropValues.getSTATE_COOKIE(), origin);
+		cookie.setPath(appPropValues.getCOOKIE_PATH());
 		cookie.setMaxAge(15 * 60);
 		return cookie;
 	}
@@ -153,11 +150,11 @@ public class GatewayServlet extends GenericServlet {
 	}
 
 	private boolean isAuthenticationTokenSet(HttpServletRequest req) {
-		return containsCookie(req, AUTH_TOKEN_COOKIE);
+		return containsCookie(req, appPropValues.getAUTH_TOKEN_COOKIE());
 	}
 	
 	private String getAuthenticationToken(HttpServletRequest req) {
-		return getCookie(req, AUTH_TOKEN_COOKIE);
+		return getCookie(req, appPropValues.getAUTH_TOKEN_COOKIE());
 	}
 
 	private void proxy(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
@@ -169,7 +166,7 @@ public class GatewayServlet extends GenericServlet {
 	}
 
 	private String getProxyTarget(HttpServletRequest req) {
-		StringBuilder target = new StringBuilder(PROXY_TARGET);
+		StringBuilder target = new StringBuilder(appPropValues.getPROXY_TARGET());
 		target.append(req.getServletPath());
 		String queryString = req.getQueryString();
 		if (queryString != null) {
