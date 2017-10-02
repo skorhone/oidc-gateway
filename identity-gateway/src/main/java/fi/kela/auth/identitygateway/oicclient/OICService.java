@@ -102,7 +102,7 @@ public class OICService {
 	private boolean isValidToken(Token token) {
 		boolean valid = false;
 		try {
-			Algorithm algorithm = Algorithm.HMAC256("secret");
+			Algorithm algorithm = Algorithm.HMAC256(appPropValues.getSigningKey());
 			JWTVerifier verifier = JWT.require(algorithm).withIssuer(appPropValues.getIssuer()).build();
 			DecodedJWT jwt = verifier.verify(token.getId_token());
 			valid = true;

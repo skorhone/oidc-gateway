@@ -24,6 +24,7 @@ public class IGWConfiguration {
 	private String issuer;
 	private String loginProvider;
 	private String tokenProvider;
+	private String signingKey;
 	private String clientId;
 
 	public String getLocation() {
@@ -147,6 +148,14 @@ public class IGWConfiguration {
 
 	public void setTokenProvider(String tokenProvider) {
 		this.tokenProvider = tokenProvider;
+	}
+
+	public String getSigningKey() {
+		return signingKey;
+	}
+
+	public void setSigningKey(String signingKey) {
+		this.signingKey = signingKey;
 	}
 
 	public String getClientId() {
