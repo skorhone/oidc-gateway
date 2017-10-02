@@ -35,19 +35,20 @@ public class OICService {
 	private IGWConfiguration appPropValues;
 
 	public String getLoginProviderURL(String state, String redirectURI) throws IOException {
-		return URLs.concatURL(appPropValues.getLoginProvider(), "",
+		return URLs.concatURL(appPropValues.getOic().getLoginProvider(), "",
 				"response_type=code&scope=openid&client_id="
-						+ URLEncoder.encode(appPropValues.getClientId(), AppConstants.ENCODING) + "&state="
+						+ URLEncoder.encode(appPropValues.getOic().getClientId(), AppConstants.ENCODING) + "&state="
 						+ URLEncoder.encode(state, AppConstants.ENCODING) + "&redirect_uri="
 						+ URLEncoder.encode(redirectURI, AppConstants.ENCODING));
 	}
-	
+
 	public Token getTokenWithRefreshToken(String refreshToken) throws IOException {
 		throw new IllegalStateException("Not yet implemented");
 	}
 
 	public Token getTokenWithAuthorizationCode(String code, String redirectURI) throws IOException {
-		HttpURLConnection connection = (HttpURLConnection) new URL(appPropValues.getTokenProvider()).openConnection();
+		HttpURLConnection connection = (HttpURLConnection) new URL(appPropValues.getOic().getTokenProvider())
+				.openConnection();
 		sendTokenRequest(connection, code, redirectURI);
 		Token token = readTokenResponse(connection);
 		if (!isValidToken(token)) {
@@ -102,8 +103,8 @@ public class OICService {
 	private boolean isValidToken(Token token) {
 		boolean valid = false;
 		try {
-			Algorithm algorithm = Algorithm.HMAC256(appPropValues.getSigningKey());
-			JWTVerifier verifier = JWT.require(algorithm).withIssuer(appPropValues.getIssuer()).build();
+			Algorithm algorithm = Algorithm.HMAC256(appPropValues.getOic().getSigningKey());
+			JWTVerifier verifier = JWT.require(algorithm).withIssuer(appPropValues.getOic().getIssuer()).build();
 			DecodedJWT jwt = verifier.verify(token.getId_token());
 			valid = true;
 		} catch (UnsupportedEncodingException exception) {
