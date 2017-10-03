@@ -7,6 +7,11 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.security.KeyFactory;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.KeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -17,8 +22,8 @@ import org.springframework.stereotype.Controller;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.auth0.jwt.interfaces.Verification;
 
 import fi.kela.auth.identitygateway.config.AppConstants;
 import fi.kela.auth.identitygateway.config.IGWConfiguration;
@@ -57,14 +62,28 @@ public class OICService {
 		return token;
 	}
 
+	private void logTokenError(HttpURLConnection connection) throws IOException {
+		try (InputStream is = connection.getResponseCode() > 200 ? connection.getErrorStream()
+				: connection.getInputStream()) {
+			String response = readResponse(is);
+			logger.error("Received error while obtaining token. Connection rc: " + connection.getResponseCode()
+					+ " Response: " + response);
+		}
+	}
+
 	private void sendTokenRequest(HttpURLConnection connection, String code, String redirectURI) throws IOException {
 		connection.setDoOutput(true);
 		connection.addRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 		connection.setRequestMethod("POST");
-		connection.getOutputStream()
-				.write(("grant_type=authorization_code" + "&code=" + URLEncoder.encode(code, AppConstants.ENCODING)
-						+ "&redirect_uri=" + URLEncoder.encode(redirectURI, AppConstants.ENCODING))
-								.getBytes(AppConstants.ENCODING));
+		String tokenRequest = "grant_type=authorization_code&code=" + URLEncoder.encode(code, AppConstants.ENCODING)
+				+ "&redirect_uri=" + URLEncoder.encode(redirectURI, AppConstants.ENCODING) + "&client_id="
+				+ URLEncoder.encode(appPropValues.getOic().getClientId(), AppConstants.ENCODING);
+		if (appPropValues.getOic().getClientSecret() != null) {
+			tokenRequest += "&client_secret="
+					+ URLEncoder.encode(appPropValues.getOic().getClientSecret(), AppConstants.ENCODING);
+		}
+		logger.debug("Token request: " + tokenRequest);
+		connection.getOutputStream().write(tokenRequest.getBytes(AppConstants.ENCODING));
 	}
 
 	private boolean isTokenInResponse(HttpURLConnection connection) throws IOException {
@@ -74,43 +93,61 @@ public class OICService {
 
 	private Token readTokenResponse(HttpURLConnection connection) throws IOException {
 		if (!isTokenInResponse(connection)) {
-			// TODO: Fix this
+			logTokenError(connection);
 			throw new IllegalStateException("No token?!");
 		}
 		return readResponse(connection);
 	}
 
 	private Token readResponse(HttpURLConnection connection) throws IOException, UnsupportedEncodingException {
-		try (InputStream is = connection.getInputStream();
-				InputStreamReader isr = new InputStreamReader(is, AppConstants.ENCODING)) {
+		String response;
+		try (InputStream is = connection.getInputStream()) {
+			response = readResponse(is);
+		}
+		BasicJsonParser parser = new BasicJsonParser();
+		Map<String, Object> token = parser.parseMap(response);
+
+		String idToken = token.get("id_token").toString();
+		String accessToken = token.get("access_token").toString();
+		String tokenType = token.get("token_type").toString();
+		int expiresIn = ((Number) token.get("expires_in")).intValue();
+		return new Token(idToken, accessToken, tokenType, expiresIn);
+	}
+
+	private String readResponse(InputStream is) throws IOException, UnsupportedEncodingException {
+		String response;
+		try (InputStreamReader isr = new InputStreamReader(is, AppConstants.ENCODING)) {
+			StringBuilder responseBuilder = new StringBuilder();
 			char[] buf = new char[4096];
 			int cnt;
-			StringBuilder response = new StringBuilder();
 			while ((cnt = isr.read(buf)) > 0) {
-				response.append(buf, 0, cnt);
+				responseBuilder.append(buf, 0, cnt);
 			}
-			BasicJsonParser parser = new BasicJsonParser();
-			Map<String, Object> token = parser.parseMap(response.toString());
-
-			String idToken = token.get("id_token").toString();
-			String accessToken = token.get("access_token").toString();
-			String tokenType = token.get("token_type").toString();
-			int expiresIn = ((Number) token.get("expires_in")).intValue();
-			return new Token(idToken, accessToken, tokenType, expiresIn);
+			response = responseBuilder.toString();
 		}
+		return response;
 	}
 
 	private boolean isValidToken(Token token) {
 		boolean valid = false;
 		try {
-			Algorithm algorithm = Algorithm.HMAC256(appPropValues.getOic().getSigningKey());
-			JWTVerifier verifier = JWT.require(algorithm).withIssuer(appPropValues.getOic().getIssuer()).build();
+			Algorithm algorithm;
+			if ("RS256".equalsIgnoreCase(appPropValues.getOic().getSignatureAlgorithm())) {
+				KeySpec spec = new X509EncodedKeySpec(
+						Base64.getDecoder().decode(appPropValues.getOic().getPublicKey()));
+				KeyFactory kf = KeyFactory.getInstance("RSA");
+				algorithm = Algorithm.RSA256((RSAPublicKey) kf.generatePublic(spec), null);
+			} else {
+				algorithm = Algorithm.HMAC256(appPropValues.getOic().getSecretKey());
+			}
+			Verification verification = JWT.require(algorithm);
+			if (appPropValues.getOic().getIssuer() != null) {
+				verification = verification.withIssuer(appPropValues.getOic().getIssuer());
+			}
+			JWTVerifier verifier = verification.build();
 			DecodedJWT jwt = verifier.verify(token.getId_token());
 			valid = true;
-		} catch (UnsupportedEncodingException exception) {
-			// UTF-8 encoding not supported
-			logger.warn("Invalid token: " + token, exception);
-		} catch (JWTVerificationException exception) {
+		} catch (Exception exception) {
 			// Invalid signature/claims
 			logger.warn("Invalid token: " + token, exception);
 		}

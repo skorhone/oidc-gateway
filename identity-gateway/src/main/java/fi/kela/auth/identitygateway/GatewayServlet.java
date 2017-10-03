@@ -19,17 +19,20 @@ import fi.kela.auth.identitygateway.config.IGWConfiguration;
 import fi.kela.auth.identitygateway.oicclient.OICService;
 import fi.kela.auth.identitygateway.oicclient.Token;
 import fi.kela.auth.identitygateway.proxy.ProxyService;
+import fi.kela.auth.identitygateway.token.TokenService;
 import fi.kela.auth.identitygateway.util.URLs;
 
 public class GatewayServlet extends GenericServlet {
 	private static final long serialVersionUID = 1L;
 	private static final Logger logger = Logger.getLogger(GatewayServlet.class);
 	@Autowired
-	private OICService oicService;
-	@Autowired
 	private IGWConfiguration appPropValues;
 	@Autowired
-	private ProxyService proxy;
+	private OICService oicService;
+	@Autowired
+	private ProxyService proxyService;
+	@Autowired
+	private TokenService tokenService;
 
 	@Override
 	public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
@@ -43,33 +46,14 @@ public class GatewayServlet extends GenericServlet {
 			logout(req, res);
 		} else if (isAuthenticationCallback(req)) {
 			authenticate(req, res);
-		} else if (!isAuthenticationTokenSet(req) && !isAllowAnonymous(req)) {
-			redirectToAuthentication(req, res);
 		} else {
-			String authenticationToken = getAuthenticationToken(req, res);
-			proxy.proxy(req, res, authenticationToken);
+			Token token = getAuthenticationTokenWithCookie(req);
+			if (token == null && !isAllowAnonymous(req)) {
+				redirectToAuthentication(req, res);
+			} else {
+				proxyService.proxy(req, res, token.getId_token());
+			}
 		}
-	}
-
-	private String getAuthenticationToken(HttpServletRequest req, HttpServletResponse res) throws IOException {
-		String authenticationToken;
-		Cookie authenticationTokenCookie = getAuthenticationTokenCookie(req);
-		if (authenticationTokenCookie == null) {
-			authenticationToken = null;
-		} else if (requiresRenewal(authenticationTokenCookie)) {
-			// TODO: Renew the cookie
-			Token token = oicService.getTokenWithRefreshToken(null);
-			res.addCookie(createAuthCookie(token));
-			authenticationToken = token.getId_token();
-		} else {
-			authenticationToken = authenticationTokenCookie.getValue();
-		}
-		return authenticationToken;
-	}
-
-	private boolean requiresRenewal(Cookie authenticationTokenCookie) {
-		// TODO: This is not yet done
-		return false;
 	}
 
 	public String getLocation(HttpServletRequest req) {
@@ -96,9 +80,10 @@ public class GatewayServlet extends GenericServlet {
 		verifyState(stateId, stateCookie);
 
 		Token token = oicService.getTokenWithAuthorizationCode(code, getCallbackURI(req));
+		String tokenId = tokenService.store(token);
 
 		logger.info("User authenticated, redirecting to " + stateCookie.getOrigin());
-		res.addCookie(createAuthCookie(token));
+		res.addCookie(createAuthCookie(tokenId, token.getExpires_in()));
 		res.sendRedirect(stateCookie.getOrigin());
 	}
 
@@ -122,10 +107,6 @@ public class GatewayServlet extends GenericServlet {
 		logger.info("Logging out");
 		res.addCookie(createAuthCookie(null, 0));
 		res.sendRedirect(appPropValues.getLogoutRedirectTarget());
-	}
-
-	private Cookie createAuthCookie(Token token) {
-		return createAuthCookie(token.getId_token(), token.getExpires_in());
 	}
 
 	private Cookie createAuthCookie(String content, int maxAge) {
@@ -174,14 +155,6 @@ public class GatewayServlet extends GenericServlet {
 		return cookie;
 	}
 
-	private boolean containsCookie(HttpServletRequest req, String name) {
-		Cookie[] cookies = req.getCookies();
-		if (cookies == null) {
-			return false;
-		}
-		return Arrays.asList(cookies).stream().filter(c -> name.equals(c.getName())).findFirst().isPresent();
-	}
-
 	private Cookie getCookie(HttpServletRequest req, String name) {
 		Cookie[] cookies = req.getCookies();
 		if (cookies == null) {
@@ -190,11 +163,22 @@ public class GatewayServlet extends GenericServlet {
 		return Arrays.asList(cookies).stream().filter(c -> name.equals(c.getName())).findFirst().orElse(null);
 	}
 
-	private boolean isAuthenticationTokenSet(HttpServletRequest req) {
-		return containsCookie(req, appPropValues.getAuthTokenCookie());
+	private Token getAuthenticationTokenWithCookie(HttpServletRequest req) {
+		Token token = null;
+		Cookie tokenCookie = getCookie(req, appPropValues.getAuthTokenCookie());
+		if (tokenCookie != null) {
+			token = tokenService.get(tokenCookie.getValue());
+			if (token != null) {
+				if (requiresRenewal(token)) {
+					// TODO: Renew token
+				}
+			}
+		}
+		return token;
 	}
 
-	private Cookie getAuthenticationTokenCookie(HttpServletRequest req) {
-		return getCookie(req, appPropValues.getAuthTokenCookie());
+	private boolean requiresRenewal(Token token) {
+		// TODO: This is not yet done
+		return false;
 	}
 }

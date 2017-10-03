@@ -4,9 +4,12 @@ public class OICConfiguration {
 	private String issuer;
 	private String loginProvider;
 	private String tokenProvider;
-	private String signingKey;
+	private String signatureAlgorithm;
+	private String secretKey;
+	private String publicKey;
 	private String clientId;
-	
+	private String clientSecret;
+
 	public String getIssuer() {
 		return issuer;
 	}
@@ -31,12 +34,28 @@ public class OICConfiguration {
 		this.tokenProvider = tokenProvider;
 	}
 
-	public String getSigningKey() {
-		return signingKey;
+	public String getSignatureAlgorithm() {
+		return signatureAlgorithm;
 	}
 
-	public void setSigningKey(String signingKey) {
-		this.signingKey = signingKey;
+	public void setSignatureAlgorithm(String signatureAlgorithm) {
+		this.signatureAlgorithm = signatureAlgorithm;
+	}
+
+	public String getSecretKey() {
+		return secretKey;
+	}
+
+	public void setSecretKey(String signingKey) {
+		this.secretKey = signingKey;
+	}
+
+	public String getPublicKey() {
+		return publicKey;
+	}
+
+	public void setPublicKey(String publicKey) {
+		this.publicKey = publicKey;
 	}
 
 	public String getClientId() {
@@ -45,5 +64,13 @@ public class OICConfiguration {
 
 	public void setClientId(String clientId) {
 		this.clientId = clientId;
+	}
+
+	public String getClientSecret() {
+		return clientSecret;
+	}
+
+	public void setClientSecret(String clientSecret) {
+		this.clientSecret = clientSecret;
 	}
 }

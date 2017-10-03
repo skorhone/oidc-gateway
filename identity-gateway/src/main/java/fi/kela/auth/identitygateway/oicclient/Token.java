@@ -28,4 +28,10 @@ public class Token {
 	public int getExpires_in() {
 		return expires_in;
 	}
+
+	@Override
+	public String toString() {
+		return "Token [id_token=" + id_token + ", access_token=" + access_token + ", token_type=" + token_type
+				+ ", expires_in=" + expires_in + "]";
+	}
 }
