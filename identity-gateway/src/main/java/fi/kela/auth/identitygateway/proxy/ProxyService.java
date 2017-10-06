@@ -15,12 +15,12 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Service;
 
 import fi.kela.auth.identitygateway.config.IGWConfiguration;
 import fi.kela.auth.identitygateway.util.URLs;
 
-@Controller
+@Service
 public class ProxyService {
 	private static final Logger logger = Logger.getLogger(ProxyService.class);
 	@Autowired

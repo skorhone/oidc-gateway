@@ -1,29 +1,34 @@
 package fi.kela.auth.identitygateway.token;
 
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
-
-import fi.kela.auth.identitygateway.oicclient.Token;
 
 @Service
 public class TokenService {
-	// TODO: Replace with EHCACHE or something similar?
-	private static Map<String, Token> TOKENS = new ConcurrentHashMap<>();
+	private Cache tokens;
+
+	public TokenService(CacheManager cacheManager) {
+		this.tokens = cacheManager.getCache("tokens");
+	}
 
 	public String store(Token token) {
 		String tokenId = UUID.randomUUID().toString().replace("-", "");
-		TOKENS.put(tokenId, token);
+		tokens.put(tokenId, token);
 		return tokenId;
 	}
 
 	public Token get(String tokenId) {
-		return TOKENS.get(tokenId);
+		return tokens.get(tokenId, Token.class);
 	}
 
-	public boolean contains(String tokenId) {
-		return TOKENS.containsKey(tokenId);
+	public void update(String tokenId, Token token) {
+		tokens.put(tokenId, token);
+	}
+
+	public void remove(String tokenId) {
+		tokens.evict(tokenId);
 	}
 }

@@ -18,10 +18,9 @@ public class IGWConfiguration {
 	private String errorRedirectTarget;
 	private String logoutRedirectTarget;
 	private String cookiePath;
-	private String authTokenCookie;
+	private String signOnCookie;
 	private String stateCookie;
 	private int stateCookieExpire;
-	private OICConfiguration oic;
 
 	public String getLocation() {
 		return location;
@@ -98,12 +97,12 @@ public class IGWConfiguration {
 		this.cookiePath = cookiePath;
 	}
 
-	public String getAuthTokenCookie() {
-		return authTokenCookie;
+	public String getSignOnCookie() {
+		return signOnCookie;
 	}
 
-	public void setAuthTokenCookie(String authTokenCookie) {
-		this.authTokenCookie = authTokenCookie;
+	public void setSignOnCookie(String authTokenCookie) {
+		this.signOnCookie = authTokenCookie;
 	}
 
 	public String getStateCookie() {
@@ -120,13 +119,5 @@ public class IGWConfiguration {
 
 	public void setStateCookieExpire(int stateCookieExpire) {
 		this.stateCookieExpire = stateCookieExpire;
-	}
-	
-	public OICConfiguration getOic() {
-		return oic;
-	}
-	
-	public void setOic(OICConfiguration oic) {
-		this.oic = oic;
 	}
 }

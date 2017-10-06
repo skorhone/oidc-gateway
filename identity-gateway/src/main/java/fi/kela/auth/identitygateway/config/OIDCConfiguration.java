@@ -1,6 +1,11 @@
 package fi.kela.auth.identitygateway.config;
 
-public class OICConfiguration {
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+@Component
+@ConfigurationProperties("oidc")
+public class OIDCConfiguration {
 	private String issuer;
 	private String loginProvider;
 	private String tokenProvider;

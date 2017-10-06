@@ -1,6 +1,6 @@
-package fi.kela.auth.openid.test.login;
+package fi.kela.auth.openid.test.auth;
 
-public class Login {
+public class Auth {
 	private String responseType;
 	private String scope;
 	private String clientId;

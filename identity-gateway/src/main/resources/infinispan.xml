@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<infinispan>
+	<cache-container default-cache="default">
+		<local-cache name="tokens">
+			<eviction max-entries="10000"/>
+			<expiration lifespan="86400000"/>
+		</local-cache>
+	</cache-container>
+</infinispan>

@@ -1,4 +1,4 @@
-package fi.kela.auth.openid.test.login;
+package fi.kela.auth.openid.test.auth;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -16,14 +16,14 @@ import fi.kela.auth.openid.test.identity.Identity;
 import fi.kela.auth.openid.test.identity.IdentityService;
 
 @Controller
-public class LoginController {
+public class AuthController {
 	private static final String ENCODING = "utf-8";
 	private String[] validClientIds = { "kela" };
 	@Autowired
 	private IdentityService identityService;
 
-	@GetMapping("/login")
-	public String login(@RequestParam(value = "response_type", required = true) String responseType,
+	@GetMapping("/auth")
+	public String authenticate(@RequestParam(value = "response_type", required = true) String responseType,
 			@RequestParam(value = "scope", required = true) String scope,
 			@RequestParam(value = "client_id", required = true) String clientId,
 			@RequestParam(value = "state", required = true) String state,
@@ -32,7 +32,7 @@ public class LoginController {
 				|| redirectURI.isEmpty()) {
 			return "error";
 		}
-		Login login = new Login();
+		Auth login = new Auth();
 		login.setResponseType(responseType);
 		login.setClientId(clientId);
 		login.setState(state);
@@ -43,12 +43,12 @@ public class LoginController {
 	}
 
 	@PostMapping("/login")
-	public String loginSubmit(@ModelAttribute Login login) {
+	public String loginSubmit(@ModelAttribute Auth auth) {
 		try {
 			String code = identityService.storeIdentity(
-					new Identity(login.getRedirectURI(), login.getSubject(), login.getName(), login.getGroupId()));
-			return "redirect:" + login.getRedirectURI() + "?code=" + URLEncoder.encode(code, ENCODING) + "&state="
-					+ URLEncoder.encode(login.getState(), ENCODING);
+					new Identity(auth.getRedirectURI(), auth.getSubject(), auth.getName(), auth.getGroupId()));
+			return "redirect:" + auth.getRedirectURI() + "?code=" + URLEncoder.encode(code, ENCODING) + "&state="
+					+ URLEncoder.encode(auth.getState(), ENCODING);
 		} catch (UnsupportedEncodingException exception) {
 			return "error";
 		}
