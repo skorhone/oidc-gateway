@@ -1,4 +1,4 @@
-package fi.kela.auth.identitygateway.config;
+package fi.kela.auth.identitygateway;
 
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +21,7 @@ public class IGWConfiguration {
 	private String signOnCookie;
 	private String stateCookie;
 	private int stateCookieExpire;
+	private int accessTokenRefreshBefore;
 
 	public String getLocation() {
 		return location;
@@ -119,5 +120,13 @@ public class IGWConfiguration {
 
 	public void setStateCookieExpire(int stateCookieExpire) {
 		this.stateCookieExpire = stateCookieExpire;
+	}
+
+	public int getAccessTokenRefreshBefore() {
+		return accessTokenRefreshBefore;
+	}
+
+	public void setAccessTokenRefreshBefore(int accessTokenRefreshBefore) {
+		this.accessTokenRefreshBefore = accessTokenRefreshBefore;
 	}
 }

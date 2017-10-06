@@ -17,7 +17,7 @@ import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import fi.kela.auth.identitygateway.config.IGWConfiguration;
+import fi.kela.auth.identitygateway.IGWConfiguration;
 import fi.kela.auth.identitygateway.util.URLs;
 
 @Service

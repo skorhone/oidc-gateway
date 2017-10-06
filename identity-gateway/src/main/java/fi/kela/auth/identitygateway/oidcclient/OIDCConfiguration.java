@@ -1,4 +1,4 @@
-package fi.kela.auth.identitygateway.config;
+package fi.kela.auth.identitygateway.oidcclient;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;

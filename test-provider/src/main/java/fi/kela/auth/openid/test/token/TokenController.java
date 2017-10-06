@@ -14,10 +14,14 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
 
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.JWT;
@@ -30,13 +34,16 @@ import fi.kela.auth.openid.test.identity.IdentityService;
 
 @RestController
 public class TokenController {
+	private static final Logger logger = Logger.getLogger(TokenController.class);
 	@Autowired
 	private ProviderConfiguration providerConfiguration;
 	@Autowired
 	private IdentityService identityService;
 
 	@RequestMapping(value = "/token", method = RequestMethod.POST, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	public Token createToken(TokenRequest request) throws UnsupportedEncodingException, NoSuchAlgorithmException {
+	public Token createToken(TokenRequest request)
+			throws UnsupportedEncodingException, NoSuchAlgorithmException, TokenNotFoundException {
+		logger.info("Processing token request");
 		if ("authorization_code".equals(request.getGrant_type())) {
 			return createTokenWithAuthorizationCode(request);
 		}
@@ -46,6 +53,12 @@ public class TokenController {
 		throw new IllegalArgumentException("Unsupported grant type: " + request.getGrant_type());
 	}
 
+	@ResponseStatus(value = HttpStatus.BAD_REQUEST, reason = "Unable to refresh access token. Token was not found")
+	@ExceptionHandler(TokenNotFoundException.class)
+	public TokenError handleTokenNotFound() {
+		return new TokenError("Unable to refresh access token", "invalid_request");
+	}
+
 	private Token createTokenWithAuthorizationCode(TokenRequest request)
 			throws UnsupportedEncodingException, NoSuchAlgorithmException {
 		Identity identity = identityService.getIdentity(request.getCode());
@@ -53,8 +66,11 @@ public class TokenController {
 	}
 
 	private Token createTokenWithRefreshToken(TokenRequest request)
-			throws UnsupportedEncodingException, NoSuchAlgorithmException {
+			throws UnsupportedEncodingException, NoSuchAlgorithmException, TokenNotFoundException {
 		Identity identity = identityService.getIdentity(request.getRefresh_token());
+		if (identity == null) {
+			throw new TokenNotFoundException();
+		}
 		return createTokenUsingIdentity(request, identity);
 	}
 

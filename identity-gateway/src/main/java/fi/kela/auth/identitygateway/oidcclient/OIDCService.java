@@ -26,8 +26,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.Verification;
 
-import fi.kela.auth.identitygateway.config.AppConstants;
-import fi.kela.auth.identitygateway.config.OIDCConfiguration;
+import fi.kela.auth.identitygateway.AppConstants;
 import fi.kela.auth.identitygateway.token.Token;
 import fi.kela.auth.identitygateway.util.URLs;
 
@@ -49,7 +48,7 @@ public class OIDCService {
 						+ URLEncoder.encode(redirectURI, AppConstants.ENCODING));
 	}
 
-	public Token getTokenWithRefreshToken(String refreshToken) throws IOException {
+	public Token getTokenWithRefreshToken(String refreshToken) throws IOException, TokenNotFoundException, TokenNotValidException {
 		HttpURLConnection connection = getTokenEndpointConnection();
 		TokenRequest tokenRequest = TokenRequest.createWithRefreshToken(oidcConfiguration.getClientId(),
 				oidcConfiguration.getClientSecret(), refreshToken);
@@ -57,7 +56,7 @@ public class OIDCService {
 		return readTokenResponse(connection);
 	}
 
-	public Token getTokenWithAuthorizationCode(String code, String redirectURI) throws IOException {
+	public Token getTokenWithAuthorizationCode(String code, String redirectURI) throws IOException, TokenNotFoundException, TokenNotValidException {
 		HttpURLConnection connection = getTokenEndpointConnection();
 		TokenRequest tokenRequest = TokenRequest.createWithCode(oidcConfiguration.getClientId(),
 				oidcConfiguration.getClientSecret(), redirectURI, code);
@@ -94,15 +93,13 @@ public class OIDCService {
 		return connection.getResponseCode() == 200 && contentType != null && contentType.startsWith("application/json");
 	}
 
-	private Token readTokenResponse(HttpURLConnection connection) throws IOException {
+	private Token readTokenResponse(HttpURLConnection connection) throws IOException, TokenNotFoundException, TokenNotValidException {
 		if (!isTokenInResponse(connection)) {
 			logTokenError(connection);
-			throw new IllegalStateException("No token?!");
+			throw new TokenNotFoundException();
 		}
 		Token token = readResponse(connection);
-		if (!isValidToken(token)) {
-			throw new IllegalStateException("Token is not valid");
-		}
+		validateToken(token);
 		return token;
 	}
 
@@ -114,12 +111,10 @@ public class OIDCService {
 		BasicJsonParser parser = new BasicJsonParser();
 		Map<String, Object> token = parser.parseMap(response);
 
-		String idToken = token.get("id_token").toString();
 		String accessToken = token.get("access_token").toString();
 		String refreshToken = token.get("refresh_token").toString();
-		String tokenType = token.get("token_type").toString();
 		int expiresIn = ((Number) token.get("expires_in")).intValue();
-		return new Token(idToken, accessToken, refreshToken, tokenType, expiresIn);
+		return new Token(accessToken, refreshToken, System.currentTimeMillis() + (expiresIn * 1000));
 	}
 
 	private String readResponse(InputStream is) throws IOException, UnsupportedEncodingException {
@@ -136,13 +131,11 @@ public class OIDCService {
 		return response;
 	}
 
-	private boolean isValidToken(Token token) {
-		boolean valid = false;
+	private void validateToken(Token token) throws TokenNotValidException {
 		try {
 			Algorithm algorithm;
 			if ("RS256".equalsIgnoreCase(oidcConfiguration.getSignatureAlgorithm())) {
-				KeySpec spec = new X509EncodedKeySpec(
-						Base64.getDecoder().decode(oidcConfiguration.getPublicKey()));
+				KeySpec spec = new X509EncodedKeySpec(Base64.getDecoder().decode(oidcConfiguration.getPublicKey()));
 				KeyFactory kf = KeyFactory.getInstance("RSA");
 				algorithm = Algorithm.RSA256((RSAPublicKey) kf.generatePublic(spec), null);
 			} else {
@@ -153,12 +146,9 @@ public class OIDCService {
 				verification = verification.withIssuer(oidcConfiguration.getIssuer());
 			}
 			JWTVerifier verifier = verification.build();
-			DecodedJWT jwt = verifier.verify(token.getAccess_token());
-			valid = true;
+			DecodedJWT jwt = verifier.verify(token.getAccessToken());
 		} catch (Exception exception) {
-			// Invalid signature/claims
-			logger.warn("Invalid token: " + token, exception);
+			throw new TokenNotValidException(exception);
 		}
-		return valid;
 	}
 }
