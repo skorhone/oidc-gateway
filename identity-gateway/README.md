@@ -10,4 +10,6 @@ Identity gateway for front ends with minimal OpenID Connect support.
 * JWT
 
 # TODO
-1. Improve error handling
+1. Handle possible concurrency problems when refreshing the token (synchronize update checks and implement asynchronous handling?)
+2. Improve error handling
+
