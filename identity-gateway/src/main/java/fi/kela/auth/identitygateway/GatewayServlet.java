@@ -189,7 +189,7 @@ public class GatewayServlet extends GenericServlet {
 		Token refreshedToken;
 		try {
 			refreshedToken = oidcService.getTokenWithRefreshToken(token.getRefreshToken());
-			tokenService.update(tokenId, token);
+			tokenService.update(tokenId, refreshedToken);
 		} catch (TokenNotFoundException exception) {
 			tokenService.remove(tokenId);
 			refreshedToken = null;
