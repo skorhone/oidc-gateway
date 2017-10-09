@@ -7,60 +7,33 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.concurrent.ExecutorService;
 
-import javax.servlet.AsyncContext;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.log4j.Logger;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import fi.kela.auth.identitygateway.IGWConfiguration;
+import fi.kela.auth.identitygateway.util.ProxyContext;
 import fi.kela.auth.identitygateway.util.URLs;
 
 @Service
 public class ProxyService {
 	private static final Logger logger = Logger.getLogger(ProxyService.class);
 	private IGWConfiguration appPropValues;
-	private ExecutorService executorService;
 
-	public ProxyService(IGWConfiguration appPropValues, ExecutorService executorService) {
+	public ProxyService(IGWConfiguration appPropValues) {
 		this.appPropValues = appPropValues;
-		this.executorService = executorService;
 	}
 
-	public void proxy(HttpServletRequest req, HttpServletResponse res, String authenticationToken)
-			throws ServletException, IOException {
-		AsyncContext context = req.startAsync();
-		Runnable runnable = () -> {
-			String target = getProxyTarget(req);
-			logger.info("Proxying request to " + target);
-			try {
-				HttpURLConnection connection = openConnection(target);
-				proxyRequest(req, connection, authenticationToken);
-				proxyResponse(res, connection);
-			} catch (ProxyResponseException exception) {
-				logger.warn("Exception occured while proxying response to client", exception);
-			} catch (ProxyRequestException exception) {
-				logger.warn("Exception occured while proxying request to backend", exception);
-				handleBackendError(res);
-			} catch (OpenConnectionException exception) {
-				logger.warn("Exception occured while connecting to backend", exception);
-				handleBackendError(res);
-			}
-			context.complete();
-		};
-		executorService.submit(runnable);
-	}
-
-	private void handleBackendError(HttpServletResponse res) {
-		try {
-			res.sendError(HttpStatus.SERVICE_UNAVAILABLE.value());
-		} catch (Exception exception) {
-		}
+	public void proxy(ProxyContext proxyContext, String authenticationToken)
+			throws OpenConnectionException, ProxyRequestException, ProxyResponseException {
+		String target = getProxyTarget(proxyContext);
+		logger.info("Proxying request to " + target);
+		HttpURLConnection connection = openConnection(target);
+		proxyRequest(proxyContext.getRequest(), connection, authenticationToken);
+		proxyResponse(proxyContext.getResponse(), connection);
 	}
 
 	private HttpURLConnection openConnection(String target) throws OpenConnectionException {
@@ -71,8 +44,8 @@ public class ProxyService {
 		}
 	}
 
-	private String getProxyTarget(HttpServletRequest req) {
-		return URLs.concatURL(appPropValues.getProxyTarget(), req.getServletPath(), req.getQueryString());
+	private String getProxyTarget(ProxyContext proxyContext) {
+		return URLs.concatURL(appPropValues.getProxyTarget(), proxyContext.getServletPath(), proxyContext.getQueryString());
 	}
 
 	private void proxyRequest(HttpServletRequest req, HttpURLConnection connection, String authenticationToken)

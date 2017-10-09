@@ -1,8 +1,10 @@
-package fi.kela.auth.identitygateway;
+package fi.kela.auth.identitygateway.auth;
 
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+
+import fi.kela.auth.identitygateway.util.AppConstants;
 
 public class StateCookie {
 	private String state;

@@ -1,4 +1,4 @@
-package fi.kela.auth.identitygateway.token;
+package fi.kela.auth.identitygateway.oidcclient;
 
 public class Token {
 	private String accessToken;

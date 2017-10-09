@@ -12,9 +12,8 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Scope;
 
-import fi.kela.auth.identitygateway.oidcclient.OIDCService;
+import fi.kela.auth.identitygateway.auth.AuthService;
 import fi.kela.auth.identitygateway.proxy.ProxyService;
-import fi.kela.auth.identitygateway.token.TokenService;
 
 @EnableCaching
 @SpringBootApplication
@@ -25,11 +24,11 @@ public class IdentityGatewayApplication {
 	}
 
 	@Bean
-	public Servlet dispatcherServlet(IGWConfiguration igwConfiguration, OIDCService oidcService,
-			ProxyService proxyService, TokenService tokenService) {
-		return new GatewayServlet(igwConfiguration, oidcService, proxyService, tokenService);
+	public Servlet dispatcherServlet(IGWConfiguration igwConfiguration, AuthService authService,
+			ProxyService proxyService, ExecutorService executorService) {
+		return new GatewayServlet(igwConfiguration, authService, proxyService, executorService);
 	}
-	
+
 	@Bean
 	@Scope("singleton")
 	public ExecutorService executorService() {

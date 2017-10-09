@@ -1,8 +1,10 @@
-package fi.kela.auth.identitygateway;
+package fi.kela.auth.identitygateway.auth;
 
 import static org.junit.Assert.*;
 
 import org.junit.Test;
+
+import fi.kela.auth.identitygateway.auth.StateCookie;
 
 public class StateCookieTest {
 	@Test

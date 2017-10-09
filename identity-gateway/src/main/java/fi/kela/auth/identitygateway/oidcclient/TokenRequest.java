@@ -3,7 +3,7 @@ package fi.kela.auth.identitygateway.oidcclient;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 
-import fi.kela.auth.identitygateway.AppConstants;
+import fi.kela.auth.identitygateway.util.AppConstants;
 
 public abstract class TokenRequest {
 	protected String client_id;

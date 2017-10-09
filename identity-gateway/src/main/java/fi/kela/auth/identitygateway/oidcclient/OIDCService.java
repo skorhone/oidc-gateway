@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.security.KeyFactory;
@@ -25,8 +24,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.Verification;
 
-import fi.kela.auth.identitygateway.AppConstants;
-import fi.kela.auth.identitygateway.token.Token;
+import fi.kela.auth.identitygateway.util.AppConstants;
 import fi.kela.auth.identitygateway.util.URLs;
 
 /**
@@ -42,16 +40,20 @@ public class OIDCService {
 		this.oidcConfiguration = oidcConfiguration;
 	}
 
-	public String getLoginProviderURL(String state, String redirectURI) throws IOException {
-		return URLs.concatURL(oidcConfiguration.getLoginProvider(), "",
-				"response_type=code&scope=openid&client_id="
-						+ URLEncoder.encode(oidcConfiguration.getClientId(), AppConstants.ENCODING) + "&state="
-						+ URLEncoder.encode(state, AppConstants.ENCODING) + "&redirect_uri="
-						+ URLEncoder.encode(redirectURI, AppConstants.ENCODING));
+	public String getLoginProviderURL(String state, String redirectURI) {
+		try {
+			return URLs.concatURL(oidcConfiguration.getLoginProvider(), "",
+					"response_type=code&scope=openid&client_id="
+							+ URLEncoder.encode(oidcConfiguration.getClientId(), AppConstants.ENCODING) + "&state="
+							+ URLEncoder.encode(state, AppConstants.ENCODING) + "&redirect_uri="
+							+ URLEncoder.encode(redirectURI, AppConstants.ENCODING));
+		} catch (UnsupportedEncodingException exception) {
+			throw new IllegalStateException("Could not get login provider URL", exception);
+		}
 	}
 
 	public Token getTokenWithRefreshToken(String refreshToken)
-			throws IOException, TokenNotFoundException, TokenNotValidException {
+			throws TokenProviderException, TokenNotFoundException, TokenNotValidException {
 		HttpURLConnection connection = getTokenEndpointConnection();
 		TokenRequest tokenRequest = TokenRequest.createWithRefreshToken(oidcConfiguration.getClientId(),
 				oidcConfiguration.getClientSecret(), refreshToken);
@@ -60,7 +62,7 @@ public class OIDCService {
 	}
 
 	public Token getTokenWithAuthorizationCode(String code, String redirectURI)
-			throws IOException, TokenNotFoundException, TokenNotValidException {
+			throws TokenProviderException, TokenNotFoundException, TokenNotValidException {
 		HttpURLConnection connection = getTokenEndpointConnection();
 		TokenRequest tokenRequest = TokenRequest.createWithCode(oidcConfiguration.getClientId(),
 				oidcConfiguration.getClientSecret(), redirectURI, code);
@@ -68,37 +70,53 @@ public class OIDCService {
 		return readTokenResponse(connection);
 	}
 
-	private HttpURLConnection getTokenEndpointConnection() throws IOException, MalformedURLException {
-		HttpURLConnection connection = (HttpURLConnection) new URL(oidcConfiguration.getTokenProvider())
-				.openConnection();
-		return connection;
-	}
-
-	private void logTokenError(HttpURLConnection connection) throws IOException {
-		try (InputStream is = connection.getResponseCode() > 200 ? connection.getErrorStream()
-				: connection.getInputStream()) {
-			String response = readResponse(is);
-			logger.error("Received error while obtaining token. Connection rc: " + connection.getResponseCode()
-					+ " Response: " + response);
+	private HttpURLConnection getTokenEndpointConnection() throws TokenProviderException {
+		try {
+			return (HttpURLConnection) new URL(oidcConfiguration.getTokenProvider()).openConnection();
+		} catch (Exception exception) {
+			throw new TokenProviderException(exception);
 		}
 	}
 
-	private void sendTokenRequest(HttpURLConnection connection, TokenRequest tokenRequest) throws IOException {
-		connection.setDoOutput(true);
-		connection.addRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-		connection.setRequestMethod("POST");
-		String form = tokenRequest.toFormEncoded();
-		logger.debug("Token request: " + form);
-		connection.getOutputStream().write(form.getBytes(AppConstants.ENCODING));
+	private void logTokenError(HttpURLConnection connection) {
+		try {
+			try (InputStream is = connection.getResponseCode() > 200 ? connection.getErrorStream()
+					: connection.getInputStream()) {
+				String response = readResponse(is);
+				logger.error("Received error while obtaining token. Connection rc: " + connection.getResponseCode()
+						+ " Response: " + response);
+			}
+		} catch (Exception exception) {
+			logger.error("Unable to retrieve error message", exception);
+		}
 	}
 
-	private boolean isTokenInResponse(HttpURLConnection connection) throws IOException {
-		String contentType = connection.getContentType();
-		return connection.getResponseCode() == 200 && contentType != null && contentType.startsWith("application/json");
+	private void sendTokenRequest(HttpURLConnection connection, TokenRequest tokenRequest)
+			throws TokenProviderException {
+		try {
+			connection.setDoOutput(true);
+			connection.addRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+			connection.setRequestMethod("POST");
+			String form = tokenRequest.toFormEncoded();
+			logger.debug("Token request: " + form);
+			connection.getOutputStream().write(form.getBytes(AppConstants.ENCODING));
+		} catch (Exception exception) {
+			throw new TokenProviderException(exception);
+		}
+	}
+
+	private boolean isTokenInResponse(HttpURLConnection connection) throws TokenProviderException {
+		try {
+			String contentType = connection.getContentType();
+			return connection.getResponseCode() == 200 && contentType != null
+					&& contentType.startsWith("application/json");
+		} catch (Exception exception) {
+			throw new TokenProviderException(exception);
+		}
 	}
 
 	private Token readTokenResponse(HttpURLConnection connection)
-			throws IOException, TokenNotFoundException, TokenNotValidException {
+			throws TokenProviderException, TokenNotFoundException, TokenNotValidException {
 		if (!isTokenInResponse(connection)) {
 			logTokenError(connection);
 			throw new TokenNotFoundException();
@@ -108,10 +126,12 @@ public class OIDCService {
 		return token;
 	}
 
-	private Token readResponse(HttpURLConnection connection) throws IOException, UnsupportedEncodingException {
+	private Token readResponse(HttpURLConnection connection) throws TokenProviderException {
 		String response;
 		try (InputStream is = connection.getInputStream()) {
 			response = readResponse(is);
+		} catch (IOException exception) {
+			throw new TokenProviderException(exception);
 		}
 		BasicJsonParser parser = new BasicJsonParser();
 		Map<String, Object> token = parser.parseMap(response);

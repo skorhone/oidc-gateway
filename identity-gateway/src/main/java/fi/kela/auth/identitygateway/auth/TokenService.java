@@ -1,10 +1,12 @@
-package fi.kela.auth.identitygateway.token;
+package fi.kela.auth.identitygateway.auth;
 
 import java.util.UUID;
 
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
+
+import fi.kela.auth.identitygateway.oidcclient.Token;
 
 @Service
 public class TokenService {
