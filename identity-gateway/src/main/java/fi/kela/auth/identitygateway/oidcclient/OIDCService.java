@@ -16,7 +16,6 @@ import java.util.Base64;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.json.BasicJsonParser;
 import org.springframework.stereotype.Service;
 
@@ -37,8 +36,11 @@ import fi.kela.auth.identitygateway.util.URLs;
 @Service
 public class OIDCService {
 	private static final Logger logger = Logger.getLogger(OIDCService.class);
-	@Autowired
 	private OIDCConfiguration oidcConfiguration;
+
+	public OIDCService(OIDCConfiguration oidcConfiguration) {
+		this.oidcConfiguration = oidcConfiguration;
+	}
 
 	public String getLoginProviderURL(String state, String redirectURI) throws IOException {
 		return URLs.concatURL(oidcConfiguration.getLoginProvider(), "",
@@ -48,7 +50,8 @@ public class OIDCService {
 						+ URLEncoder.encode(redirectURI, AppConstants.ENCODING));
 	}
 
-	public Token getTokenWithRefreshToken(String refreshToken) throws IOException, TokenNotFoundException, TokenNotValidException {
+	public Token getTokenWithRefreshToken(String refreshToken)
+			throws IOException, TokenNotFoundException, TokenNotValidException {
 		HttpURLConnection connection = getTokenEndpointConnection();
 		TokenRequest tokenRequest = TokenRequest.createWithRefreshToken(oidcConfiguration.getClientId(),
 				oidcConfiguration.getClientSecret(), refreshToken);
@@ -56,7 +59,8 @@ public class OIDCService {
 		return readTokenResponse(connection);
 	}
 
-	public Token getTokenWithAuthorizationCode(String code, String redirectURI) throws IOException, TokenNotFoundException, TokenNotValidException {
+	public Token getTokenWithAuthorizationCode(String code, String redirectURI)
+			throws IOException, TokenNotFoundException, TokenNotValidException {
 		HttpURLConnection connection = getTokenEndpointConnection();
 		TokenRequest tokenRequest = TokenRequest.createWithCode(oidcConfiguration.getClientId(),
 				oidcConfiguration.getClientSecret(), redirectURI, code);
@@ -93,7 +97,8 @@ public class OIDCService {
 		return connection.getResponseCode() == 200 && contentType != null && contentType.startsWith("application/json");
 	}
 
-	private Token readTokenResponse(HttpURLConnection connection) throws IOException, TokenNotFoundException, TokenNotValidException {
+	private Token readTokenResponse(HttpURLConnection connection)
+			throws IOException, TokenNotFoundException, TokenNotValidException {
 		if (!isTokenInResponse(connection)) {
 			logTokenError(connection);
 			throw new TokenNotFoundException();

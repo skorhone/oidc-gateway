@@ -14,7 +14,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import fi.kela.auth.identitygateway.oidcclient.OIDCService;
 import fi.kela.auth.identitygateway.oidcclient.TokenNotFoundException;
@@ -27,14 +26,18 @@ import fi.kela.auth.identitygateway.util.URLs;
 public class GatewayServlet extends GenericServlet {
 	private static final long serialVersionUID = 1L;
 	private static final Logger logger = Logger.getLogger(GatewayServlet.class);
-	@Autowired
 	private IGWConfiguration igwConfiguration;
-	@Autowired
 	private OIDCService oidcService;
-	@Autowired
 	private ProxyService proxyService;
-	@Autowired
 	private TokenService tokenService;
+
+	public GatewayServlet(IGWConfiguration igwConfiguration, OIDCService oidcService, ProxyService proxyService,
+			TokenService tokenService) {
+		this.igwConfiguration = igwConfiguration;
+		this.oidcService = oidcService;
+		this.proxyService = proxyService;
+		this.tokenService = tokenService;
+	}
 
 	@Override
 	public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
