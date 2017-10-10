@@ -60,23 +60,22 @@ public class TokenController {
 	}
 
 	private Token createTokenWithAuthorizationCode(TokenRequest request)
-			throws UnsupportedEncodingException, NoSuchAlgorithmException {
-		Identity identity = identityService.getIdentity(request.getCode());
-		return createTokenUsingIdentity(request, identity);
+			throws TokenNotFoundException, UnsupportedEncodingException, NoSuchAlgorithmException {
+		String refreshToken = identityService.getIdWithCode(request.getCode());
+		return createToken(request, refreshToken);
 	}
 
 	private Token createTokenWithRefreshToken(TokenRequest request)
 			throws UnsupportedEncodingException, NoSuchAlgorithmException, TokenNotFoundException {
-		Identity identity = identityService.getIdentity(request.getRefresh_token());
+		return createToken(request, request.getRefresh_token());
+	}
+
+	private Token createToken(TokenRequest request, String refreshToken)
+			throws TokenNotFoundException, UnsupportedEncodingException, NoSuchAlgorithmException {
+		Identity identity = identityService.getIdentity(refreshToken);
 		if (identity == null) {
 			throw new TokenNotFoundException();
 		}
-		return createTokenUsingIdentity(request, identity);
-	}
-
-	private Token createTokenUsingIdentity(TokenRequest request, Identity identity)
-			throws UnsupportedEncodingException, NoSuchAlgorithmException {
-		String refreshToken = createRefreshToken(identity);
 		Instant now = Instant.now();
 		Duration expiresIn = Duration.ofSeconds(providerConfiguration.getAccessTokenExpire());
 		String accessToken = createAccessToken(identity, now, expiresIn);
@@ -85,7 +84,7 @@ public class TokenController {
 
 	private String createAccessToken(Identity identity, Instant now, Duration expiresIn)
 			throws UnsupportedEncodingException, NoSuchAlgorithmException {
-		Algorithm algorithm = getAlgorithm();
+		Algorithm algorithm = getAlgorithm(providerConfiguration.getSignatureAlgorithm());
 		Builder accessTokenBuilder = JWT.create().withIssuer(providerConfiguration.getIssuerName())
 				.withSubject(identity.getSubject()).withClaim("name", identity.getName())
 				.withArrayClaim("groupIds", new String[] { identity.getGroupId() }).withIssuedAt(Date.from(now))
@@ -96,16 +95,15 @@ public class TokenController {
 		return accessTokenBuilder.sign(algorithm);
 	}
 
-	private Algorithm getAlgorithm() {
+	private Algorithm getAlgorithm(String signatureAlgorithm) {
 		Algorithm algorithm;
 		try {
-			if ("RS256".equalsIgnoreCase(providerConfiguration.getSignatureAlgorithm())) {
+			if ("RS256".equalsIgnoreCase(signatureAlgorithm)) {
 				algorithm = getRS256Algorithm();
-			} else if ("HS256".equalsIgnoreCase(providerConfiguration.getSignatureAlgorithm())) {
+			} else if ("HS256".equalsIgnoreCase(signatureAlgorithm)) {
 				algorithm = getHS256Algorithm();
 			} else {
-				throw new NoSuchAlgorithmException(
-						"Unsupported algorithm: " + providerConfiguration.getSignatureAlgorithm());
+				throw new NoSuchAlgorithmException("Unsupported algorithm: " + signatureAlgorithm);
 			}
 		} catch (Exception exception) {
 			throw new IllegalStateException("Could not initialize requested signing algorithm", exception);

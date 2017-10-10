@@ -8,17 +8,49 @@ import org.springframework.stereotype.Controller;
 
 @Controller
 public class IdentityService {
-	private static final Map<String, Identity> identities = new ConcurrentHashMap<>();
+	// TODO: Expiration would increase security and prevent overflow :-)
+	private static final Map<String, Identity> codeIdentities = new ConcurrentHashMap<>(1000);
+	private static final Map<String, Identity> tokenIdentities = new ConcurrentHashMap<>(1000);
 
+	/**
+	 * Store identity
+	 * 
+	 * @param identity
+	 *            identity
+	 * @return code
+	 */
 	public String storeIdentity(Identity identity) {
-		// TODO: Expiration would increase security and prevent overflow :-)
+		String code = generateUniqueId();
+		codeIdentities.put(code, identity);
+		return code;
+	}
+
+	/**
+	 * Invalidate the given code and return storage id
+	 * 
+	 * @param id
+	 *            storage id
+	 * @return storage id
+	 */
+	public String getIdWithCode(String code) {
+		Identity identity = codeIdentities.remove(code);
+		if (identity == null) {
+			return null;
+		}
 		String id = generateUniqueId();
-		identities.put(id, identity);
+		tokenIdentities.put(id, identity);
 		return id;
 	}
 
+	/**
+	 * Get identity
+	 * 
+	 * @param id
+	 *            storage id
+	 * @return identity (if any)
+	 */
 	public Identity getIdentity(String id) {
-		return identities.remove(id);
+		return tokenIdentities.get(id);
 	}
 
 	private String generateUniqueId() {

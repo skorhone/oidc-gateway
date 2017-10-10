@@ -43,7 +43,7 @@ public class OIDCService {
 	public String getLoginProviderURL(String state, String redirectURI) {
 		try {
 			return URLs.concatURL(oidcConfiguration.getLoginProvider(), "",
-					"response_type=code&scope=openid&client_id="
+					"response_type=code&scope=openid,offline_access&client_id="
 							+ URLEncoder.encode(oidcConfiguration.getClientId(), AppConstants.ENCODING) + "&state="
 							+ URLEncoder.encode(state, AppConstants.ENCODING) + "&redirect_uri="
 							+ URLEncoder.encode(redirectURI, AppConstants.ENCODING));

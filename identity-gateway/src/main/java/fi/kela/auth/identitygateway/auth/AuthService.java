@@ -1,6 +1,5 @@
 package fi.kela.auth.identitygateway.auth;
 
-import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -16,8 +15,6 @@ import fi.kela.auth.identitygateway.IGWConfiguration;
 import fi.kela.auth.identitygateway.oidcclient.OIDCService;
 import fi.kela.auth.identitygateway.oidcclient.Token;
 import fi.kela.auth.identitygateway.oidcclient.TokenNotFoundException;
-import fi.kela.auth.identitygateway.oidcclient.TokenNotValidException;
-import fi.kela.auth.identitygateway.oidcclient.TokenProviderException;
 import fi.kela.auth.identitygateway.util.Cookies;
 import fi.kela.auth.identitygateway.util.ProxyContext;
 import fi.kela.auth.identitygateway.util.URLs;
@@ -85,8 +82,8 @@ public class AuthService {
 			proxyContext.getResponse().sendRedirect(stateCookie.getOrigin());
 			logger.info("User authenticated, redirecting to " + stateCookie.getOrigin());
 			onComplete.run();
-		} catch (Exception exception) {
-			onError.accept(new AuthException("Could not authenticate user", exception));
+		} catch (Throwable error) {
+			onError.accept(new AuthException("Could not authenticate user", error));
 		}
 	}
 
@@ -99,19 +96,21 @@ public class AuthService {
 	 */
 	public void retrieveAuthenticationToken(ProxyContext proxyContext, Consumer<Token> onComplete,
 			Consumer<? super AuthException> onError) {
-		Cookie tokenCookie = Cookies.getCookie(proxyContext.getRequest(), igwConfiguration.getSignOnCookie());
 		try {
-			Token token = null;
-			if (tokenCookie != null) {
+			Cookie tokenCookie = Cookies.getCookie(proxyContext.getRequest(), igwConfiguration.getSignOnCookie());
+			if (tokenCookie == null) {
+				onComplete.accept(null);
+			} else {
 				String tokenId = tokenCookie.getValue();
-				token = tokenService.get(tokenId);
-				if (token != null && requiresRenewal(token)) {
-					token = refreshAuthenticationToken(token, tokenId);
+				Token token = tokenService.get(tokenId);
+				if (token == null || !requiresRenewal(token)) {
+					onComplete.accept(token);
+				} else {
+					refreshAuthenticationToken(token, tokenId, onComplete, onError);
 				}
 			}
-			onComplete.accept(token);
-		} catch (AuthException exception) {
-			onError.accept(exception);
+		} catch (Throwable error) {
+			onError.accept(new AuthException("Could not retrieve authentication token", error));
 		}
 	}
 
@@ -136,8 +135,8 @@ public class AuthService {
 			logger.info("Logging out");
 			proxyContext.getResponse().addCookie(createAuthCookie(null, 0));
 			proxyContext.getResponse().sendRedirect(igwConfiguration.getLogoutRedirectTarget());
-		} catch (IOException exception) {
-			logger.warn("Could not redirect user to logout target", exception);
+		} catch (Throwable error) {
+			logger.warn("Could not redirect user to logout target", error);
 		} finally {
 			onComplete.run();
 		}
@@ -150,18 +149,21 @@ public class AuthService {
 		return cookie;
 	}
 
-	private Token refreshAuthenticationToken(Token token, String tokenId) throws AuthException {
+	private void refreshAuthenticationToken(Token token, String tokenId, Consumer<Token> onComplete,
+			Consumer<? super AuthException> onError) {
 		Token refreshedToken;
 		try {
-			refreshedToken = oidcService.getTokenWithRefreshToken(token.getRefreshToken());
-			tokenService.update(tokenId, refreshedToken);
-		} catch (TokenNotFoundException exception) {
-			tokenService.remove(tokenId);
-			refreshedToken = null;
-		} catch (TokenProviderException | TokenNotValidException exception) {
-			throw new AuthException(exception);
+			try {
+				refreshedToken = oidcService.getTokenWithRefreshToken(token.getRefreshToken());
+				tokenService.update(tokenId, refreshedToken);
+			} catch (TokenNotFoundException exception) {
+				refreshedToken = null;
+				tokenService.remove(tokenId);
+			}
+			onComplete.accept(refreshedToken);
+		} catch (Throwable error) {
+			onError.accept(new AuthException(error));
 		}
-		return refreshedToken;
 	}
 
 	private boolean requiresRenewal(Token token) {
