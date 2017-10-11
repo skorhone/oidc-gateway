@@ -45,17 +45,17 @@ public class JWKSKeyProvider implements KeyProvider {
 		if (!"RSA".equals(publicKey.getAlgorithm())) {
 			throw new KeyException("Key " + kid + " is not RSA key");
 		}
-		return (RSAPublicKey)publicKey;
+		return (RSAPublicKey) publicKey;
 	}
 
 	private PublicKey createPublicKey(JWK jwk) throws KeyException {
 		try {
-			BigInteger modulus = new BigInteger(new String(Base64.getUrlDecoder().decode(jwk.getN()), "utf-8"));
-			BigInteger exponent = new BigInteger(new String(Base64.getUrlDecoder().decode(jwk.getE()), "utf-8"));
+			BigInteger modulus = new BigInteger(Base64.getUrlDecoder().decode(jwk.getN()));
+			BigInteger exponent = new BigInteger(Base64.getUrlDecoder().decode(jwk.getE()));
 
 			RSAPublicKeySpec spec = new RSAPublicKeySpec(modulus, exponent);
 			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-			return (RSAPublicKey)keyFactory.generatePublic(spec);
+			return (RSAPublicKey) keyFactory.generatePublic(spec);
 		} catch (Exception exception) {
 			throw new KeyException("Could not create public key from jwk with id " + jwk.getKid(), exception);
 		}

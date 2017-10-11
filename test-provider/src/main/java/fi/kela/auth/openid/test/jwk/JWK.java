@@ -18,8 +18,8 @@ public class JWK {
 			jwk.alg = "RS256";
 			jwk.kty = "RSA";
 			jwk.use = "SIG";
-			jwk.n = encode(publicKey.getModulus().toString().getBytes("utf-8"));
-			jwk.e = encode(publicKey.getPublicExponent().toString().getBytes("utf-8"));
+			jwk.n = encode(publicKey.getModulus().toByteArray());
+			jwk.e = encode(publicKey.getPublicExponent().toByteArray());
 			jwk.kid = kid;
 			return jwk;
 		} catch (Exception exception) {
