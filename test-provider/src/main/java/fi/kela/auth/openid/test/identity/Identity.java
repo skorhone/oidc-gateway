@@ -5,6 +5,7 @@ public class Identity {
 	private String subject;
 	private String name;
 	private String groupId;
+	private long expiresAt;
 
 	public Identity(String redirectURI, String subject, String name, String groupId) {
 		this.redirectURI = redirectURI;
@@ -27,5 +28,17 @@ public class Identity {
 
 	public String getGroupId() {
 		return groupId;
+	}
+	
+	public long getExpiresAt() {
+		return expiresAt;
+	}
+	
+	public void setExpiresAt(long expiresAt) {
+		this.expiresAt = expiresAt;
+	}
+	
+	public boolean isExpired() {
+		return System.currentTimeMillis() > expiresAt;
 	}
 }

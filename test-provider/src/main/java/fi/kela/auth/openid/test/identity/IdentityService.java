@@ -4,13 +4,18 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.stereotype.Controller;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
-@Controller
+import fi.kela.auth.openid.test.config.ProviderConfiguration;
+
+@Service
 public class IdentityService {
 	// TODO: Expiration would increase security and prevent overflow :-)
 	private static final Map<String, Identity> codeIdentities = new ConcurrentHashMap<>(1000);
 	private static final Map<String, Identity> tokenIdentities = new ConcurrentHashMap<>(1000);
+	@Autowired
+	private ProviderConfiguration providerConfiguration;
 
 	/**
 	 * Store identity
@@ -38,6 +43,7 @@ public class IdentityService {
 			return null;
 		}
 		String id = generateUniqueId();
+		identity.setExpiresAt(System.currentTimeMillis() + (providerConfiguration.getRefreshTokenExpire() * 1000));
 		tokenIdentities.put(id, identity);
 		return id;
 	}
@@ -50,7 +56,12 @@ public class IdentityService {
 	 * @return identity (if any)
 	 */
 	public Identity getIdentity(String id) {
-		return tokenIdentities.get(id);
+		Identity identity = tokenIdentities.get(id);
+		if (identity != null && identity.isExpired()) {
+			tokenIdentities.remove(id);
+			identity = null;
+		}
+		return identity;
 	}
 
 	private String generateUniqueId() {

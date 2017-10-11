@@ -9,6 +9,7 @@ public class OIDCConfiguration {
 	private String issuer;
 	private String loginProvider;
 	private String tokenProvider;
+	private String jwksProvider;
 	private String signatureAlgorithm;
 	private String secretKey;
 	private String publicKey;
@@ -37,6 +38,14 @@ public class OIDCConfiguration {
 
 	public void setTokenProvider(String tokenProvider) {
 		this.tokenProvider = tokenProvider;
+	}
+	
+	public String getJwksProvider() {
+		return jwksProvider;
+	}
+	
+	public void setJwksProvider(String jwksProvider) {
+		this.jwksProvider = jwksProvider;
 	}
 
 	public String getSignatureAlgorithm() {

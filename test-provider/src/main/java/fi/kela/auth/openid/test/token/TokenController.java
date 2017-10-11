@@ -1,17 +1,12 @@
 package fi.kela.auth.openid.test.token;
 
 import java.io.UnsupportedEncodingException;
-import java.security.KeyFactory;
+import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.KeySpec;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Date;
 
 import org.apache.log4j.Logger;
@@ -27,10 +22,13 @@ import org.springframework.web.bind.annotation.RestController;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTCreator.Builder;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.interfaces.RSAKeyProvider;
 
 import fi.kela.auth.openid.test.config.ProviderConfiguration;
 import fi.kela.auth.openid.test.identity.Identity;
 import fi.kela.auth.openid.test.identity.IdentityService;
+import fi.kela.auth.openid.test.key.KeyException;
+import fi.kela.auth.openid.test.key.KeyService;
 
 @RestController
 public class TokenController {
@@ -39,6 +37,8 @@ public class TokenController {
 	private ProviderConfiguration providerConfiguration;
 	@Autowired
 	private IdentityService identityService;
+	@Autowired
+	private KeyService keyService;
 
 	@RequestMapping(value = "/token", method = RequestMethod.POST, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public Token createToken(TokenRequest request)
@@ -73,9 +73,6 @@ public class TokenController {
 	private Token createToken(TokenRequest request, String refreshToken)
 			throws TokenNotFoundException, UnsupportedEncodingException, NoSuchAlgorithmException {
 		Identity identity = identityService.getIdentity(refreshToken);
-		if (identity == null) {
-			throw new TokenNotFoundException();
-		}
 		Instant now = Instant.now();
 		Duration expiresIn = Duration.ofSeconds(providerConfiguration.getAccessTokenExpire());
 		String accessToken = createAccessToken(identity, now, expiresIn);
@@ -111,21 +108,28 @@ public class TokenController {
 		return algorithm;
 	}
 
-	private Algorithm getRS256Algorithm() throws NoSuchAlgorithmException, InvalidKeySpecException {
-		KeySpec privateKeySpec = new PKCS8EncodedKeySpec(
-				Base64.getDecoder().decode(providerConfiguration.getPrivateKey()));
-		KeySpec publicKeySpec = new X509EncodedKeySpec(
-				Base64.getDecoder().decode(providerConfiguration.getPublicKey()));
-		KeyFactory kf = KeyFactory.getInstance("RSA");
-		return Algorithm.RSA256((RSAPublicKey) kf.generatePublic(publicKeySpec),
-				(RSAPrivateKey) kf.generatePrivate(privateKeySpec));
+	private Algorithm getRS256Algorithm() throws KeyException {
+		String keyId = keyService.getKeyId();
+		KeyPair keyPair = keyService.getKeyPair();
+		return Algorithm.RSA256(new RSAKeyProvider() {
+			@Override
+			public RSAPublicKey getPublicKeyById(String keyId) {
+				return (RSAPublicKey)keyPair.getPublic();
+			}
+			
+			@Override
+			public String getPrivateKeyId() {
+				return keyId;
+			}
+			
+			@Override
+			public RSAPrivateKey getPrivateKey() {
+				return (RSAPrivateKey)keyPair.getPrivate();
+			}
+		});
 	}
 
-	private Algorithm getHS256Algorithm() throws UnsupportedEncodingException {
-		return Algorithm.HMAC256(providerConfiguration.getSecretKey());
-	}
-
-	private String createRefreshToken(Identity identity) {
-		return identityService.storeIdentity(identity);
+	private Algorithm getHS256Algorithm() throws KeyException, IllegalArgumentException, UnsupportedEncodingException {
+		return Algorithm.HMAC256(keyService.getSecretKey());
 	}
 }

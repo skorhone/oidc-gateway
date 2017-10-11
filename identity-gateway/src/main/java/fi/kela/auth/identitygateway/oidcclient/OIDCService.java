@@ -7,11 +7,8 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.security.KeyFactory;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
-import java.security.spec.KeySpec;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -22,8 +19,10 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.auth0.jwt.interfaces.RSAKeyProvider;
 import com.auth0.jwt.interfaces.Verification;
 
+import fi.kela.auth.identitygateway.oidcclient.key.KeyProvider;
 import fi.kela.auth.identitygateway.util.AppConstants;
 import fi.kela.auth.identitygateway.util.URLs;
 
@@ -35,9 +34,11 @@ import fi.kela.auth.identitygateway.util.URLs;
 public class OIDCService {
 	private static final Logger logger = Logger.getLogger(OIDCService.class);
 	private OIDCConfiguration oidcConfiguration;
+	private KeyProvider keyProvider;
 
-	public OIDCService(OIDCConfiguration oidcConfiguration) {
+	public OIDCService(OIDCConfiguration oidcConfiguration, KeyProvider keyProvider) {
 		this.oidcConfiguration = oidcConfiguration;
+		this.keyProvider = keyProvider;
 	}
 
 	public String getLoginProviderURL(String state, String redirectURI) {
@@ -160,9 +161,22 @@ public class OIDCService {
 		try {
 			Algorithm algorithm;
 			if ("RS256".equalsIgnoreCase(oidcConfiguration.getSignatureAlgorithm())) {
-				KeySpec spec = new X509EncodedKeySpec(Base64.getDecoder().decode(oidcConfiguration.getPublicKey()));
-				KeyFactory kf = KeyFactory.getInstance("RSA");
-				algorithm = Algorithm.RSA256((RSAPublicKey) kf.generatePublic(spec), null);
+				algorithm = Algorithm.RSA256(new RSAKeyProvider() {
+					@Override
+					public RSAPublicKey getPublicKeyById(String keyId) {
+						return keyProvider.getRSAPublicKey(keyId);
+					}
+
+					@Override
+					public String getPrivateKeyId() {
+						throw new UnsupportedOperationException();
+					}
+
+					@Override
+					public RSAPrivateKey getPrivateKey() {
+						throw new UnsupportedOperationException();
+					}
+				});
 			} else {
 				algorithm = Algorithm.HMAC256(oidcConfiguration.getSecretKey());
 			}
