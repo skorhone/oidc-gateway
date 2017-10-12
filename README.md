@@ -26,19 +26,19 @@ Authentication flow is used when token reference cookie is not present, is not v
 ![Authentication flow](src/doc/images/auth.jpg)
 
 1. Client requests resource from RP
-2. RP redirects client to OP for authentication. A state is created and stored in a cookie. State reference and callback resource address are passed to as request parameters in redirect address
-3. Client requests authentication from OP. State reference is stored
+2. RP redirects client to OP for authentication. A state is created and stored in a cookie. A state reference and a callback resource address are passed as request parameters in redirect address
+3. Client requests authentication from OP. The state reference is stored
 4. OP responses with a login form containing the state reference 
 5. Client posts login form contents to OP
-6. OP redirects client to given callback address. State reference and authentication code are passed as requests parameters
-7. Client requests callback resource from RP with provided parameters and state cookie
-8. RP requests token from OP using authentication code
-9. OP returns a token set containing id token, access token and refresh token
+6. OP redirects client to the callback address. The state reference and a authentication code are passed as requests parameters
+7. Client requests callback resource from RP with provided parameters and the state cookie
+8. RP requests token from OP using the authentication code
+9. OP returns a token set containing an id token, an access token and a refresh token
 10. RP requests public keys from OP
 11. OP returns public keys as JWKS
-12. RP redirects client to location stored in the state. Tokens are stored on RP and reference to tokens is stored in a cookie.
-13. Client requests resource from RP with token reference cookie
-14. RP requests resource from RS with access token
+12. RP redirects client to location stored in the state. Tokens are stored on RP and a reference to tokens is stored in a cookie.
+13. Client requests resource from RP with the token reference cookie
+14. RP requests resource from RS with the referenced access token
 15. RS requests public keys from OP
 16. OP returns public keys as JWKS
 17. RS returns response to RP
@@ -50,11 +50,11 @@ Token refresh flow is used when access token is about to expire or has been expi
 ![Token refresh flow](src/doc/images/refresh.jpg)
 
 1. Client requests resource from RP with token reference cookie
-2. RP requests token from OP using refresh token
-3. OP returns a token set containing id token, access token and refresh token
+2. RP requests token from OP with the refresh token stored earlier on RP
+3. OP returns a token set containing an id token, an access token and a refresh token
 4. RP requests public keys from OP
 5. OP returns public keys as JWKS
-6. RP requests resource from RS with access token
+6. RP requests resource from RS with the access token
 7. RS requests public keys from OP
 8. OP returns public keys as JWKS
 9. RS returns response to RP
