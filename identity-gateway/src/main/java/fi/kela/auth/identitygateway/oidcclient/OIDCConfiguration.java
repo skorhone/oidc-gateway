@@ -10,6 +10,7 @@ public class OIDCConfiguration {
 	private String loginProvider;
 	private String tokenProvider;
 	private String jwksProvider;
+	private long jwksReloadAfter;
 	private String signatureAlgorithm;
 	private String secretKey;
 	private String publicKey;
@@ -46,6 +47,14 @@ public class OIDCConfiguration {
 	
 	public void setJwksProvider(String jwksProvider) {
 		this.jwksProvider = jwksProvider;
+	}
+	
+	public long getJwksReloadAfter() {
+		return jwksReloadAfter;
+	}
+	
+	public void setJwksReloadAfter(long jwksReloadAfter) {
+		this.jwksReloadAfter = jwksReloadAfter;
 	}
 
 	public String getSignatureAlgorithm() {

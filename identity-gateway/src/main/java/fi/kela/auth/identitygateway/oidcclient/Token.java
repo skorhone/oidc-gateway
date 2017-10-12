@@ -1,8 +1,14 @@
 package fi.kela.auth.identitygateway.oidcclient;
 
-public class Token {
+import java.io.Serializable;
+
+public class Token implements Serializable {
+	private static final long serialVersionUID = 1L;
+	// JWT Access token
 	private String accessToken;
+	// JWT Refresh token
 	private String refreshToken;
+	// Time Access token expires at
 	private long expiresAt;
 
 	public Token(String accessToken, String refreshToken, long expiresAt) {

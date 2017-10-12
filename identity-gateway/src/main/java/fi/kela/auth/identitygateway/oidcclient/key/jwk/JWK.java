@@ -4,7 +4,6 @@ public class JWK {
 	private String alg;
 	private String kty;
 	private String use;
-	private String[] x5c;
 	private String n;
 	private String e;
 	private String kid;
@@ -31,14 +30,6 @@ public class JWK {
 
 	public void setUse(String use) {
 		this.use = use;
-	}
-
-	public String[] getX5c() {
-		return x5c;
-	}
-
-	public void setX5c(String[] x5c) {
-		this.x5c = x5c;
 	}
 
 	public String getN() {

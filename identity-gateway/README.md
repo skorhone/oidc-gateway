@@ -10,5 +10,5 @@ Identity gateway for front ends with minimal OpenID Connect support.
 * JWT
 
 # TODO
-1. Enable support for JWKS caching
+1. Add more tests :-)
 2. Improve security (prevent cross site scripting/requests at gateway level?)

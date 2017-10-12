@@ -10,33 +10,70 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
+import org.apache.log4j.Logger;
 
+import fi.kela.auth.identitygateway.json.JSONService;
 import fi.kela.auth.identitygateway.oidcclient.key.KeyException;
 import fi.kela.auth.identitygateway.oidcclient.key.KeyProvider;
 
 public class JWKSKeyProvider implements KeyProvider {
-	private static final ObjectReader READER = new ObjectMapper().reader();
-	private String url;
+	private static final Logger logger = Logger.getLogger(JWKSKeyProvider.class);
+	private JSONService jsonService;
+	private URL providerURL;
+	private Map<String, PublicKey> publicKeys;
+	private long keysLoadedAt;
+	private long jwksReloadAfter;
 
-	public JWKSKeyProvider(String url) {
-		this.url = url;
+	public JWKSKeyProvider(URL providerUrl, JSONService jsonService, long jwksReloadAfter) {
+		this.providerURL = providerUrl;
+		this.jsonService = jsonService;
+		this.jwksReloadAfter = jwksReloadAfter;
+		logger.info("Initialized JWKS provider. Loading keys from " + providerURL.toExternalForm() + " every "
+				+ jwksReloadAfter + " milliseconds");
 	}
 
-	protected JWKS getJWKS() {
-		// TODO: We should warn about insecure access (no https)
+	private JWKS loadJWKS() throws KeyException {
 		try {
-			return READER.forType(JWKS.class).readValue(new URL(url));
+			return jsonService.readValue(providerURL, JWKS.class);
 		} catch (Exception exception) {
-			// TODO: Fix this
-			throw new IllegalStateException("TODO!", exception);
+			throw new KeyException("Could not load keys from " + providerURL.toExternalForm(), exception);
 		}
 	}
 
-	protected Map<String, PublicKey> getPublicKeys() {
-		// TODO: We should implement caching...
-		return getJWKS().getKeys().stream().collect(Collectors.toMap(JWK::getKid, this::createPublicKey));
+	private void loadPublicKeys() throws KeyException {
+		this.publicKeys = loadJWKS().getKeys().stream().collect(Collectors.toMap(JWK::getKid, this::createPublicKey));
+		updateKeysLoadedAt();
+	}
+
+	private void updateKeysLoadedAt() {
+		this.keysLoadedAt = System.currentTimeMillis();
+	}
+
+	private boolean isLoadRequired() {
+		return publicKeys == null;
+	}
+
+	private boolean isReloadRequired() {
+		return System.currentTimeMillis() - keysLoadedAt > jwksReloadAfter;
+	}
+
+	private Map<String, PublicKey> getCurrentPublicKeys() {
+		return publicKeys;
+	}
+
+	private synchronized Map<String, PublicKey> getPublicKeys() throws KeyException {
+		if (isLoadRequired()) {
+			loadPublicKeys();
+		} else if (isReloadRequired()) {
+			try {
+				loadPublicKeys();
+			} catch (KeyException exception) {
+				logger.warn("Could not reload keys from " + providerURL.toExternalForm()
+						+ ". Using previously loaded keys until next refresh", exception);
+				updateKeysLoadedAt();
+			}
+		}
+		return getCurrentPublicKeys();
 	}
 
 	@Override

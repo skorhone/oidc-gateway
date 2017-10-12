@@ -10,7 +10,6 @@ import java.time.Instant;
 import java.util.Date;
 
 import org.apache.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -33,16 +32,19 @@ import fi.kela.auth.openid.test.key.KeyService;
 @RestController
 public class TokenController {
 	private static final Logger logger = Logger.getLogger(TokenController.class);
-	@Autowired
 	private ProviderConfiguration providerConfiguration;
-	@Autowired
 	private IdentityService identityService;
-	@Autowired
 	private KeyService keyService;
 
+	public TokenController(ProviderConfiguration providerConfiguration, IdentityService identityService,
+			KeyService keyService) {
+		this.providerConfiguration = providerConfiguration;
+		this.identityService = identityService;
+		this.keyService = keyService;
+	}
+
 	@RequestMapping(value = "/token", method = RequestMethod.POST, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	public Token createToken(TokenRequest request)
-			throws UnsupportedEncodingException, NoSuchAlgorithmException, TokenNotFoundException {
+	public Token createToken(TokenRequest request) throws UnsupportedGrantTypeException, TokenNotFoundException {
 		logger.info("Processing token request");
 		if ("authorization_code".equals(request.getGrant_type())) {
 			return createTokenWithAuthorizationCode(request);
@@ -50,37 +52,45 @@ public class TokenController {
 		if ("refresh_token".equals(request.getGrant_type())) {
 			return createTokenWithRefreshToken(request);
 		}
-		throw new IllegalArgumentException("Unsupported grant type: " + request.getGrant_type());
+		throw new UnsupportedGrantTypeException("Unsupported grant type: " + request.getGrant_type());
 	}
 
-	@ResponseStatus(value = HttpStatus.BAD_REQUEST, reason = "Unable to refresh access token. Token was not found")
+	@ResponseStatus(code = HttpStatus.BAD_REQUEST)
+	@ExceptionHandler(UnsupportedGrantTypeException.class)
+	public TokenError handleUnsupportedGrantType() {
+		return new TokenError("Unsupported grant type", "invalid_request");
+	}
+
+	@ResponseStatus(code = HttpStatus.BAD_REQUEST)
 	@ExceptionHandler(TokenNotFoundException.class)
 	public TokenError handleTokenNotFound() {
-		return new TokenError("Unable to refresh access token", "invalid_request");
+		return new TokenError("Unable to get access token", "invalid_request");
 	}
 
-	private Token createTokenWithAuthorizationCode(TokenRequest request)
-			throws TokenNotFoundException, UnsupportedEncodingException, NoSuchAlgorithmException {
+	private Token createTokenWithAuthorizationCode(TokenRequest request) throws TokenNotFoundException {
 		String refreshToken = identityService.getIdWithCode(request.getCode());
+		if (refreshToken == null) {
+			throw new TokenNotFoundException();
+		}
 		return createToken(request, refreshToken);
 	}
 
-	private Token createTokenWithRefreshToken(TokenRequest request)
-			throws UnsupportedEncodingException, NoSuchAlgorithmException, TokenNotFoundException {
+	private Token createTokenWithRefreshToken(TokenRequest request) throws TokenNotFoundException {
 		return createToken(request, request.getRefresh_token());
 	}
 
-	private Token createToken(TokenRequest request, String refreshToken)
-			throws TokenNotFoundException, UnsupportedEncodingException, NoSuchAlgorithmException {
+	private Token createToken(TokenRequest request, String refreshToken) throws TokenNotFoundException {
 		Identity identity = identityService.getIdentity(refreshToken);
+		if (identity == null) {
+			throw new TokenNotFoundException();
+		}
 		Instant now = Instant.now();
 		Duration expiresIn = Duration.ofSeconds(providerConfiguration.getAccessTokenExpire());
 		String accessToken = createAccessToken(identity, now, expiresIn);
 		return new Token(null, accessToken, refreshToken, request.getGrant_type(), (int) expiresIn.getSeconds());
 	}
 
-	private String createAccessToken(Identity identity, Instant now, Duration expiresIn)
-			throws UnsupportedEncodingException, NoSuchAlgorithmException {
+	private String createAccessToken(Identity identity, Instant now, Duration expiresIn) {
 		Algorithm algorithm = getAlgorithm(providerConfiguration.getSignatureAlgorithm());
 		Builder accessTokenBuilder = JWT.create().withIssuer(providerConfiguration.getIssuerName())
 				.withSubject(identity.getSubject()).withClaim("name", identity.getName())
@@ -114,17 +124,17 @@ public class TokenController {
 		return Algorithm.RSA256(new RSAKeyProvider() {
 			@Override
 			public RSAPublicKey getPublicKeyById(String keyId) {
-				return (RSAPublicKey)keyPair.getPublic();
+				return (RSAPublicKey) keyPair.getPublic();
 			}
-			
+
 			@Override
 			public String getPrivateKeyId() {
 				return keyId;
 			}
-			
+
 			@Override
 			public RSAPrivateKey getPrivateKey() {
-				return (RSAPrivateKey)keyPair.getPrivate();
+				return (RSAPrivateKey) keyPair.getPrivate();
 			}
 		});
 	}

@@ -3,19 +3,23 @@ package fi.kela.auth.openid.test.identity;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import fi.kela.auth.openid.test.config.ProviderConfiguration;
 
 @Service
 public class IdentityService {
-	// TODO: Expiration would increase security and prevent overflow :-)
-	private static final Map<String, Identity> codeIdentities = new ConcurrentHashMap<>(1000);
-	private static final Map<String, Identity> tokenIdentities = new ConcurrentHashMap<>(1000);
-	@Autowired
 	private ProviderConfiguration providerConfiguration;
+	private Map<String, Identity> codeIdentities;
+	private Map<String, Identity> tokenIdentities;
+
+	public IdentityService(ProviderConfiguration providerConfiguration) {
+		this.providerConfiguration = providerConfiguration;
+		this.codeIdentities = new ConcurrentHashMap<>(1000);
+		this.tokenIdentities = new ConcurrentHashMap<>(1000);
+	}
 
 	/**
 	 * Store identity
@@ -43,7 +47,8 @@ public class IdentityService {
 			return null;
 		}
 		String id = generateUniqueId();
-		identity.setExpiresAt(System.currentTimeMillis() + (providerConfiguration.getRefreshTokenExpire() * 1000));
+		identity.setExpiresAt(
+				System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(providerConfiguration.getRefreshTokenExpire()));
 		tokenIdentities.put(id, identity);
 		return id;
 	}

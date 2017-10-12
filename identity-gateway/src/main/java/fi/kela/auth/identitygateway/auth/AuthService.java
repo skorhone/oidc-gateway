@@ -24,9 +24,9 @@ public class AuthService {
 	private static final Logger logger = Logger.getLogger(AuthService.class);
 	private IGWConfiguration igwConfiguration;
 	private OIDCService oidcService;
-	private TokenService tokenService;
+	private TokenStorage tokenService;
 
-	public AuthService(IGWConfiguration igwConfiguration, OIDCService oidcService, TokenService tokenService) {
+	public AuthService(IGWConfiguration igwConfiguration, OIDCService oidcService, TokenStorage tokenService) {
 		this.igwConfiguration = igwConfiguration;
 		this.oidcService = oidcService;
 		this.tokenService = tokenService;

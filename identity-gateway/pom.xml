@@ -9,7 +9,7 @@
 	<packaging>jar</packaging>
 
 	<name>identity-gateway</name>
-	<description>Demo project for Spring Boot</description>
+	<description>Open ID Connect identity gateway</description>
 
 	<parent>
 		<groupId>org.springframework.boot</groupId>

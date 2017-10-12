@@ -9,10 +9,9 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
-import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
-import org.springframework.boot.json.BasicJsonParser;
 import org.springframework.stereotype.Service;
 
 import com.auth0.jwt.JWT;
@@ -22,6 +21,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.RSAKeyProvider;
 import com.auth0.jwt.interfaces.Verification;
 
+import fi.kela.auth.identitygateway.json.JSONService;
 import fi.kela.auth.identitygateway.oidcclient.key.KeyProvider;
 import fi.kela.auth.identitygateway.util.AppConstants;
 import fi.kela.auth.identitygateway.util.URLs;
@@ -34,10 +34,12 @@ import fi.kela.auth.identitygateway.util.URLs;
 public class OIDCService {
 	private static final Logger logger = Logger.getLogger(OIDCService.class);
 	private OIDCConfiguration oidcConfiguration;
+	private JSONService jsonService;
 	private KeyProvider keyProvider;
 
-	public OIDCService(OIDCConfiguration oidcConfiguration, KeyProvider keyProvider) {
+	public OIDCService(OIDCConfiguration oidcConfiguration, JSONService jsonService, KeyProvider keyProvider) {
 		this.oidcConfiguration = oidcConfiguration;
+		this.jsonService = jsonService;
 		this.keyProvider = keyProvider;
 	}
 
@@ -128,19 +130,14 @@ public class OIDCService {
 	}
 
 	private Token readResponse(HttpURLConnection connection) throws TokenProviderException {
-		String response;
+		TokenJSON tokenJSON;
 		try (InputStream is = connection.getInputStream()) {
-			response = readResponse(is);
+			tokenJSON = jsonService.readValue(is, TokenJSON.class);
 		} catch (IOException exception) {
 			throw new TokenProviderException(exception);
 		}
-		BasicJsonParser parser = new BasicJsonParser();
-		Map<String, Object> token = parser.parseMap(response);
-
-		String accessToken = token.get("access_token").toString();
-		String refreshToken = token.get("refresh_token").toString();
-		int expiresIn = ((Number) token.get("expires_in")).intValue();
-		return new Token(accessToken, refreshToken, System.currentTimeMillis() + (expiresIn * 1000));
+		return new Token(tokenJSON.getAccess_token(), tokenJSON.getRefresh_token(),
+				System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(tokenJSON.getExpires_in()));
 	}
 
 	private String readResponse(InputStream is) throws IOException, UnsupportedEncodingException {

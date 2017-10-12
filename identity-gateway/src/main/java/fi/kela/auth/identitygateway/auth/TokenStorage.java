@@ -4,15 +4,15 @@ import java.util.UUID;
 
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import fi.kela.auth.identitygateway.oidcclient.Token;
 
-@Service
-public class TokenService {
+@Component
+public class TokenStorage {
 	private Cache tokens;
 
-	public TokenService(CacheManager cacheManager) {
+	public TokenStorage(CacheManager cacheManager) {
 		this.tokens = cacheManager.getCache("tokens");
 	}
 
